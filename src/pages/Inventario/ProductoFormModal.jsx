@@ -110,11 +110,20 @@ export default function ProductoFormModal({ producto, onClose }) {
     }
 
     setGuardando(true);
-    try {
-      let fotoUrl = form.fotoUrl;
-      if (archivoFoto) {
+
+    let fotoUrl = form.fotoUrl;
+    let avisoFoto = "";
+    if (archivoFoto) {
+      try {
         fotoUrl = await subirFotoProducto(archivoFoto);
+      } catch (err) {
+        console.error(err);
+        avisoFoto =
+          "No se pudo subir la foto (revisa que Storage esté activado en Firebase). El resto del producto se guardará igual.";
       }
+    }
+
+    try {
       const datos = { ...form, fotoUrl };
 
       if (esEdicion) {
@@ -122,6 +131,7 @@ export default function ProductoFormModal({ producto, onClose }) {
       } else {
         await crearProducto(datos);
       }
+      if (avisoFoto) window.alert(avisoFoto);
       onClose();
     } catch (err) {
       console.error(err);
