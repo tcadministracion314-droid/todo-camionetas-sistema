@@ -45,7 +45,21 @@ export async function eliminarFotoProducto(fotoUrl) {
   }
 }
 
+function limpiarProveedores(proveedores) {
+  return (proveedores || [])
+    .map((p) => ({
+      nombre: p.nombre.trim(),
+      codigo: p.codigo?.trim() || null,
+    }))
+    .filter((p) => p.nombre);
+}
+
 function limpiarDatosProducto(datos) {
+  const proveedores = limpiarProveedores(datos.proveedores);
+  if (proveedores.length === 0) {
+    throw new Error("Debes ingresar al menos un proveedor.");
+  }
+
   return {
     nombre: datos.nombre.trim(),
     marca: datos.marca.trim(),
@@ -63,7 +77,8 @@ function limpiarDatosProducto(datos) {
       : null,
     fotoUrl: datos.fotoUrl || null,
     tipoInventario: datos.tipoInventario,
-    proveedor: datos.proveedor?.trim() || null,
+    proveedores,
+    codigoOriginal: datos.codigoOriginal?.trim() || null,
   };
 }
 
@@ -75,6 +90,9 @@ export async function crearProducto(datos) {
     limpio.tipoRepuesto
       ? crearValorCatalogoSiNoExiste("tiposRepuesto", limpio.tipoRepuesto)
       : Promise.resolve(),
+    ...limpio.proveedores.map((p) =>
+      crearValorCatalogoSiNoExiste("proveedores", p.nombre)
+    ),
   ]);
 
   return addDoc(collection(db, COLECCION), {
@@ -92,6 +110,9 @@ export async function actualizarProducto(id, datos) {
     limpio.tipoRepuesto
       ? crearValorCatalogoSiNoExiste("tiposRepuesto", limpio.tipoRepuesto)
       : Promise.resolve(),
+    ...limpio.proveedores.map((p) =>
+      crearValorCatalogoSiNoExiste("proveedores", p.nombre)
+    ),
   ]);
 
   return updateDoc(doc(db, COLECCION, id), {

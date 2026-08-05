@@ -32,7 +32,8 @@ const FORM_VACIO = {
   precioVenta: "",
   fechaIngreso: new Date().toISOString().slice(0, 10),
   tipoInventario: "en_bodega",
-  proveedor: "",
+  proveedores: [{ nombre: "", codigo: "" }],
+  codigoOriginal: "",
   fotoUrl: "",
 };
 
@@ -50,6 +51,14 @@ export default function ProductoFormModal({ producto, onClose }) {
           precioVenta: producto.precioVenta ?? "",
           fechaIngreso: fechaAInputValue(producto.fechaIngreso),
           subcategoria: producto.subcategoria || SUBCATEGORIAS_ACCESORIO[0],
+          proveedores:
+            producto.proveedores?.length > 0
+              ? producto.proveedores.map((p) => ({
+                  nombre: p.nombre || "",
+                  codigo: p.codigo || "",
+                }))
+              : [{ nombre: "", codigo: "" }],
+          codigoOriginal: producto.codigoOriginal || "",
         }
       : FORM_VACIO
   );
@@ -59,14 +68,45 @@ export default function ProductoFormModal({ producto, onClose }) {
 
   const { valores: marcas } = useCatalogo("marcas");
   const { valores: tiposRepuesto } = useCatalogo("tiposRepuesto");
+  const { valores: proveedoresSugeridos } = useCatalogo("proveedores");
 
   function actualizarCampo(campo, valor) {
     setForm((prev) => ({ ...prev, [campo]: valor }));
   }
 
+  function actualizarProveedor(index, campo, valor) {
+    setForm((prev) => ({
+      ...prev,
+      proveedores: prev.proveedores.map((p, i) =>
+        i === index ? { ...p, [campo]: valor } : p
+      ),
+    }));
+  }
+
+  function agregarProveedor() {
+    setForm((prev) => ({
+      ...prev,
+      proveedores: [...prev.proveedores, { nombre: "", codigo: "" }],
+    }));
+  }
+
+  function quitarProveedor(index) {
+    setForm((prev) => ({
+      ...prev,
+      proveedores: prev.proveedores.filter((_, i) => i !== index),
+    }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    const hayProveedor = form.proveedores.some((p) => p.nombre.trim());
+    if (!hayProveedor) {
+      setError("Debes ingresar al menos un proveedor.");
+      return;
+    }
+
     setGuardando(true);
     try {
       let fotoUrl = form.fotoUrl;
@@ -323,17 +363,75 @@ export default function ProductoFormModal({ producto, onClose }) {
 
           <div>
             <label
-              htmlFor="proveedor"
+              htmlFor="codigoOriginal"
               className="mb-1 block text-sm font-bold text-marca-azul"
             >
-              Proveedor (opcional)
+              Código original (universal, el mismo para todos los proveedores)
             </label>
             <input
-              id="proveedor"
-              value={form.proveedor}
-              onChange={(e) => actualizarCampo("proveedor", e.target.value)}
+              id="codigoOriginal"
+              value={form.codigoOriginal}
+              onChange={(e) =>
+                actualizarCampo("codigoOriginal", e.target.value)
+              }
+              placeholder="Déjalo vacío si aún no lo tienes"
               className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
             />
+          </div>
+
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="block text-sm font-bold text-marca-azul">
+                Proveedores (al menos uno, cada uno con su propio código)
+              </span>
+              <button
+                type="button"
+                onClick={agregarProveedor}
+                className="text-sm font-bold text-marca-rojo hover:underline"
+              >
+                + Agregar proveedor
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {form.proveedores.map((p, index) => (
+                <div key={index} className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <CampoConSugerencias
+                      id={`proveedor-${index}`}
+                      label={index === 0 ? "Proveedor" : ""}
+                      value={p.nombre}
+                      onChange={(v) => actualizarProveedor(index, "nombre", v)}
+                      sugerencias={proveedoresSugeridos}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    {index === 0 && (
+                      <label className="mb-1 block text-sm font-bold text-marca-azul">
+                        Código del proveedor
+                      </label>
+                    )}
+                    <input
+                      value={p.codigo}
+                      onChange={(e) =>
+                        actualizarProveedor(index, "codigo", e.target.value)
+                      }
+                      className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                    />
+                  </div>
+                  {form.proveedores.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => quitarProveedor(index)}
+                      className="px-2 py-2 font-bold text-marca-rojo"
+                      aria-label="Quitar proveedor"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
 
           <div>
