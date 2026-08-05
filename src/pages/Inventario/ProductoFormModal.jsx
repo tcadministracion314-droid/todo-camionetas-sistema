@@ -457,16 +457,17 @@ export default function ProductoFormModal({ producto, onClose }) {
           <div>
             <label
               htmlFor="foto"
-              className="mb-1 block text-sm font-bold text-marca-azul"
+              className="mb-1 block text-sm font-bold text-marca-azul/50"
             >
-              Foto
+              Foto (disponible más adelante)
             </label>
             <input
               id="foto"
               type="file"
               accept="image/*"
+              disabled
               onChange={(e) => setArchivoFoto(e.target.files?.[0] || null)}
-              className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+              className="w-full cursor-not-allowed border-2 border-marca-azul/30 bg-marca-azul/5 px-3 py-2 text-marca-azul/50 outline-none"
             />
             {form.fotoUrl && !archivoFoto && (
               <img
