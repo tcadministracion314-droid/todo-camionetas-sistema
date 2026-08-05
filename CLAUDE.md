@@ -53,6 +53,11 @@ las explicaciones y commits deben ser claras, en español simple, sin asumir con
    "Ver foto" que carga la imagen solo al hacer clic, no automáticamente — así no se
    relentiza la lista con 1.700 productos). Buscador por marca (de repuesto o de
    vehículo), modelo y año; lista paginada de a 50.
+   **Foto temporalmente desactivada en el formulario** (campo deshabilitado, con nota
+   "disponible más adelante"): Firebase Storage requiere el plan de pago "Blaze" de
+   Google (aunque el uso real caiga dentro de la cuota gratis) y el usuario decidió
+   resolver eso más adelante. Cuando se retome: activar Storage con plan Blaze, quitar
+   `disabled` del input de foto en `ProductoFormModal.jsx`.
 2. **Ventas** — buscador de productos con autocompletado libre (nombre/marca/modelo a la
    vez, sin elegir filtro primero), cantidad, descuento con switch %/$ , método de pago
    (efectivo, débito, crédito, transferencia). **Venta por encargo**: para productos fuera
