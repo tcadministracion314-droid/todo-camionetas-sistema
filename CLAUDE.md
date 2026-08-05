@@ -91,12 +91,11 @@ Decisiones tomadas sobre estos datos:
   mapea a la lista `proveedores` en Firestore (cada fila del Excel = un producto con un
   proveedor y su código; si el mismo producto aparece en varias filas con distinto
   Importador, el script debe agruparlas en un solo producto con varios proveedores).
-- La columna **"Marca"** del Excel corresponde a **marca del vehículo** (va agrupada con
-  Modelo y Año). La **marca del repuesto** (fabricante de la pieza, campo obligatorio en
-  el sistema) **no está** como columna propia en el Excel — pendiente de decidir cómo se
-  completa al importar (¿inferir del nombre del Artículo, dejar un valor genérico
-  temporal tipo "Sin marca", o pedir que se complete manualmente después?). Resolver esto
-  antes de construir el script de importación (task pendiente).
+- La columna **"Marca"** del Excel corresponde a **marca del repuesto** (fabricante de la
+  pieza, campo obligatorio en el sistema) → mapeo directo, ya viene con datos reales para
+  los ~1.700 productos, no requiere inferencia. La **marca del vehículo** (campo opcional
+  en el sistema) **no está** en el Excel — queda vacía/null en todos los productos
+  importados; se completa manualmente después si se necesita.
 - **"Código Original"** = código universal (el mismo para todos los proveedores). El
   Excel actual **no tiene este dato cargado**. No se debe intentar buscarlo/completarlo
   automáticamente vía IA o web scraping a granel — el riesgo de asignar códigos
