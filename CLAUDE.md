@@ -58,6 +58,13 @@ las explicaciones y commits deben ser claras, en español simple, sin asumir con
    Google (aunque el uso real caiga dentro de la cuota gratis) y el usuario decidió
    resolver eso más adelante. Cuando se retome: activar Storage con plan Blaze, quitar
    `disabled` del input de foto en `ProductoFormModal.jsx`.
+   **Respaldo**: botón "Exportar a Excel" en Inventario (`src/lib/exportarExcel.js`,
+   librería `@e965/xlsx` — NO usar el paquete `xlsx` de npm a secas, tiene
+   vulnerabilidades sin parchar; `@e965/xlsx` republica las versiones parchadas oficiales
+   de SheetJS). Es un respaldo manual bajo demanda, no automático — Firestore ya es
+   durable por sí solo, esto es solo conveniencia/tranquilidad para el usuario. Genera un
+   archivo `.xlsx` con una fila por combinación producto+proveedor, igual que la
+   estructura del Excel original.
 2. **Ventas** — buscador de productos con autocompletado libre (nombre/marca/modelo a la
    vez, sin elegir filtro primero), cantidad, descuento con switch %/$ , método de pago
    (efectivo, débito, crédito, transferencia). **Venta por encargo**: para productos fuera
