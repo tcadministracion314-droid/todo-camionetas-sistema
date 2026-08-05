@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useProductos } from "../../hooks/useProductos";
 import { eliminarProducto } from "../../lib/firestore/productos";
 import { TIPOS_INVENTARIO } from "../../lib/constants";
+import { exportarProductosAExcel } from "../../lib/exportarExcel";
 import ProductoFormModal from "./ProductoFormModal";
 
 const POR_PAGINA = 50;
@@ -92,16 +93,26 @@ export default function InventarioPage() {
         <h1 className="text-2xl font-black uppercase text-marca-azul">
           Inventario
         </h1>
-        <button
-          type="button"
-          onClick={() => {
-            setProductoEditando(null);
-            setModalAbierto(true);
-          }}
-          className="bg-marca-rojo px-5 py-2 font-black uppercase text-white hover:opacity-90"
-        >
-          + Nuevo producto
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            disabled={productos.length === 0}
+            onClick={() => exportarProductosAExcel(productos)}
+            className="border-2 border-marca-azul px-5 py-2 font-black uppercase text-marca-azul hover:bg-marca-azul/10 disabled:opacity-30"
+          >
+            Exportar a Excel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setProductoEditando(null);
+              setModalAbierto(true);
+            }}
+            className="bg-marca-rojo px-5 py-2 font-black uppercase text-white hover:opacity-90"
+          >
+            + Nuevo producto
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
