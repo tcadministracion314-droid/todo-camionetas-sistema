@@ -103,10 +103,11 @@ las explicaciones y commits deben ser claras, en español simple, sin asumir con
 
 ## El Excel real de inventario
 
-Vive en `datos-privados/` (nunca en git, ya subido por el usuario). Es un archivo de
-**5.944 filas × 21 columnas**, pero NO es una tabla plana — es un diseño "para imprimir"
-con celdas combinadas. Estructura real (confirmada inspeccionando el archivo con
-`scripts/inspeccionar-excel.mjs`):
+**YA IMPORTADO** (ver resumen al final de esta sección). Vive en `datos-privados/` (nunca
+en git, ya subido por el usuario). Es un archivo de **5.944 filas × 21 columnas**, pero
+NO es una tabla plana — es un diseño "para imprimir" con celdas combinadas. Estructura
+real (confirmada inspeccionando el archivo, lógica embebida en
+`scripts/importar-productos.mjs`):
 
 - Fila 1: título general (combinado, ignorar). Fila 3: encabezados, pero cada campo
   ocupa VARIAS columnas físicas combinadas (ej. "Artículo" ocupa A-D, "Marca" ocupa E-H,
@@ -153,6 +154,19 @@ con celdas combinadas. Estructura real (confirmada inspeccionando el archivo con
   sistema. No hay listas cerradas fijas.
 - Hay al menos una sección con título ambiguo/truncado ("V", 15 filas) — importar tal
   cual y que el usuario lo corrija manualmente si hace falta, no es bloqueante.
+- El 66% de las filas (2.247) no tenían Importador — se importaron con el proveedor de
+  relleno **"Sin proveedor especificado"**, para no perder su costo/precio/stock.
+
+**Resultado de la importación real** (ejecutada con `node scripts/importar-productos.mjs
+--escribir`, usando la cuenta de servicio): **2.831 productos** creados (2.685 repuestos,
+146 accesorios), 318 marcas de repuesto, 41 tipos de repuesto y 36 proveedores agregados
+a los catálogos dinámicos. El número final (2.831) es mayor a la estimación inicial de
+~1.700 porque variantes de año distintas para el mismo artículo cuentan como productos
+separados — es fiel a como está el Excel, no es un error. El script soporta
+`--escribir` (por defecto corre en modo simulación/dry-run sin tocar Firestore) y es
+re-ejecutable de forma segura si se necesita reimportar (usa `db.collection().doc()` con
+ID nuevo cada vez — **si se vuelve a correr, va a DUPLICAR los productos**, no está hecho
+para ser idempotente; si se necesita reimportar, borrar antes los productos existentes).
 
 ## Convenciones de código
 
