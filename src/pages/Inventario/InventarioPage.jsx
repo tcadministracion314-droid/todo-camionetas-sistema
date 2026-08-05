@@ -29,6 +29,7 @@ export default function InventarioPage() {
   const [pagina, setPagina] = useState(1);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [productoEditando, setProductoEditando] = useState(null);
+  const [fotoAmpliada, setFotoAmpliada] = useState(null);
 
   const productosFiltrados = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -171,14 +172,15 @@ export default function InventarioPage() {
                 <tr key={p.id} className="border-t border-marca-azul/20">
                   <td className="p-3">
                     {p.fotoUrl ? (
-                      <img
-                        src={p.fotoUrl}
-                        alt=""
-                        loading="lazy"
-                        className="h-12 w-12 object-cover"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => setFotoAmpliada(p.fotoUrl)}
+                        className="text-sm font-bold text-marca-azul hover:underline"
+                      >
+                        Ver foto
+                      </button>
                     ) : (
-                      <div className="h-12 w-12 bg-marca-azul/10" />
+                      <span className="text-sm text-marca-azul/40">—</span>
                     )}
                   </td>
                   <td className="p-3 font-bold">{p.nombre}</td>
@@ -264,6 +266,19 @@ export default function InventarioPage() {
           producto={productoEditando}
           onClose={() => setModalAbierto(false)}
         />
+      )}
+
+      {fotoAmpliada && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setFotoAmpliada(null)}
+        >
+          <img
+            src={fotoAmpliada}
+            alt=""
+            className="max-h-[85vh] max-w-full border-4 border-white"
+          />
+        </div>
       )}
     </div>
   );
