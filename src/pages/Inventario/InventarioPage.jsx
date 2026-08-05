@@ -1,5 +1,210 @@
-import Placeholder from "../Placeholder";
+import { useMemo, useState } from "react";
+import { useProductos } from "../../hooks/useProductos";
+import { eliminarProducto } from "../../lib/firestore/productos";
+import { TIPOS_INVENTARIO } from "../../lib/constants";
+import ProductoFormModal from "./ProductoFormModal";
+
+function formatoCLP(numero) {
+  if (numero === null || numero === undefined) return "—";
+  return numero.toLocaleString("es-CL", {
+    style: "currency",
+    currency: "CLP",
+  });
+}
 
 export default function InventarioPage() {
-  return <Placeholder title="Inventario" />;
+  const { productos, loading } = useProductos();
+  const [tab, setTab] = useState("todos");
+  const [busqueda, setBusqueda] = useState("");
+  const [anioFiltro, setAnioFiltro] = useState("");
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [productoEditando, setProductoEditando] = useState(null);
+
+  const productosFiltrados = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
+    const anio = anioFiltro ? Number(anioFiltro) : null;
+
+    return productos.filter((p) => {
+      if (tab !== "todos" && p.tipoInventario !== tab) return false;
+
+      if (texto) {
+        const coincide =
+          p.nombre?.toLowerCase().includes(texto) ||
+          p.marca?.toLowerCase().includes(texto) ||
+          p.modelo?.toLowerCase().includes(texto);
+        if (!coincide) return false;
+      }
+
+      if (anio) {
+        const dentroDeRango =
+          (p.anioDesde === null || p.anioDesde <= anio) &&
+          (p.anioHasta === null || p.anioHasta >= anio);
+        if (!dentroDeRango) return false;
+      }
+
+      return true;
+    });
+  }, [productos, tab, busqueda, anioFiltro]);
+
+  async function handleEliminar(producto) {
+    const confirmar = window.confirm(
+      `¿Eliminar "${producto.nombre}" del inventario? Esta acción no se puede deshacer.`
+    );
+    if (!confirmar) return;
+    await eliminarProducto(producto.id, producto.fotoUrl);
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-black uppercase text-marca-azul">
+          Inventario
+        </h1>
+        <button
+          type="button"
+          onClick={() => {
+            setProductoEditando(null);
+            setModalAbierto(true);
+          }}
+          className="bg-marca-rojo px-5 py-2 font-black uppercase text-white hover:opacity-90"
+        >
+          + Nuevo producto
+        </button>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setTab("todos")}
+          className={`px-4 py-2 text-sm font-bold uppercase ${
+            tab === "todos"
+              ? "bg-marca-azul text-white"
+              : "bg-marca-azul/10 text-marca-azul"
+          }`}
+        >
+          Todos
+        </button>
+        {TIPOS_INVENTARIO.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            onClick={() => setTab(t.value)}
+            className={`px-4 py-2 text-sm font-bold uppercase ${
+              tab === t.value
+                ? "bg-marca-azul text-white"
+                : "bg-marca-azul/10 text-marca-azul"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-4 flex gap-4">
+        <input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por nombre, marca o modelo..."
+          className="flex-1 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+        />
+        <input
+          value={anioFiltro}
+          onChange={(e) => setAnioFiltro(e.target.value)}
+          type="number"
+          placeholder="Año"
+          className="w-32 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+        />
+      </div>
+
+      {loading ? (
+        <p className="font-bold text-marca-azul">Cargando inventario...</p>
+      ) : (
+        <div className="overflow-x-auto border-2 border-marca-azul">
+          <table className="w-full border-collapse text-left">
+            <thead>
+              <tr className="bg-marca-azul text-white">
+                <th className="p-3">Foto</th>
+                <th className="p-3">Nombre</th>
+                <th className="p-3">Marca</th>
+                <th className="p-3">Modelo</th>
+                <th className="p-3">Año</th>
+                <th className="p-3">Stock</th>
+                <th className="p-3">Costo</th>
+                <th className="p-3">Venta</th>
+                <th className="p-3">Tipo</th>
+                <th className="p-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {productosFiltrados.map((p) => (
+                <tr key={p.id} className="border-t border-marca-azul/20">
+                  <td className="p-3">
+                    {p.fotoUrl ? (
+                      <img
+                        src={p.fotoUrl}
+                        alt=""
+                        className="h-12 w-12 object-cover"
+                      />
+                    ) : (
+                      <div className="h-12 w-12 bg-marca-azul/10" />
+                    )}
+                  </td>
+                  <td className="p-3 font-bold">{p.nombre}</td>
+                  <td className="p-3">{p.marca}</td>
+                  <td className="p-3">{p.modelo || "—"}</td>
+                  <td className="p-3">
+                    {p.anioDesde || p.anioHasta
+                      ? `${p.anioDesde ?? "?"}–${p.anioHasta ?? "?"}`
+                      : "—"}
+                  </td>
+                  <td className="p-3">{p.stock ?? "—"}</td>
+                  <td className="p-3">{formatoCLP(p.precioCosto)}</td>
+                  <td className="p-3">{formatoCLP(p.precioVenta)}</td>
+                  <td className="p-3 text-xs font-bold uppercase text-marca-azul">
+                    {TIPOS_INVENTARIO.find((t) => t.value === p.tipoInventario)
+                      ?.label ?? p.tipoInventario}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProductoEditando(p);
+                          setModalAbierto(true);
+                        }}
+                        className="text-sm font-bold text-marca-azul hover:underline"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEliminar(p)}
+                        className="text-sm font-bold text-marca-rojo hover:underline"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {productosFiltrados.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="p-6 text-center text-marca-azul">
+                    No se encontraron productos.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modalAbierto && (
+        <ProductoFormModal
+          producto={productoEditando}
+          onClose={() => setModalAbierto(false)}
+        />
+      )}
+    </div>
+  );
 }

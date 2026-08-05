@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Cualquier usuario que haya iniciado sesión (empleado de Todo Camionetas)
+    // puede leer y escribir. Es un equipo pequeño y de confianza (2-3 personas).
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
