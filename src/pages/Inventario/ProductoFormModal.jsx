@@ -316,6 +316,13 @@ export default function ProductoFormModal({ producto, onClose }) {
                   </option>
                 ))}
               </select>
+              {form.tipoInventario === "proyectado" &&
+                form.proveedores.some((p) => Number(p.stock) > 0) && (
+                  <p className="mt-1 text-sm font-bold text-marca-rojo">
+                    Tiene stock cargado — al guardar pasará automáticamente a
+                    "En bodega".
+                  </p>
+                )}
             </div>
             <div>
               <label

@@ -66,6 +66,12 @@ function limpiarDatosProducto(datos) {
     throw new Error("Debes ingresar al menos un proveedor.");
   }
 
+  const tieneStock = proveedores.some((p) => p.stock !== null && p.stock > 0);
+  const tipoInventario =
+    datos.tipoInventario === "proyectado" && tieneStock
+      ? "en_bodega"
+      : datos.tipoInventario;
+
   return {
     nombre: datos.nombre.trim(),
     marcaRepuesto: datos.marcaRepuesto.trim(),
@@ -78,7 +84,7 @@ function limpiarDatosProducto(datos) {
     anioHasta: datos.anioHasta ? Number(datos.anioHasta) : null,
     glosaTecnica: datos.glosaTecnica?.trim() || null,
     fotoUrl: datos.fotoUrl || null,
-    tipoInventario: datos.tipoInventario,
+    tipoInventario,
     proveedores,
     codigoOriginal: datos.codigoOriginal?.trim() || null,
   };
