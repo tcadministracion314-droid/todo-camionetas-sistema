@@ -25,13 +25,14 @@ export function exportarProductosAExcel(productos) {
       Categoría: p.categoria || "",
       Subcategoría: p.subcategoria || "",
       "Tipo de repuesto": p.tipoRepuesto || "",
+      "Glosa técnica": p.glosaTecnica || "",
       Proveedor: prov.nombre || "",
       "Código proveedor": prov.codigo || "",
       "Código original": p.codigoOriginal || "",
-      Costo: p.precioCosto ?? "",
-      Venta: p.precioVenta ?? "",
-      Stock: p.stock ?? "",
-      "Fecha ingreso": fechaATexto(p.fechaIngreso),
+      Costo: prov.costo ?? "",
+      Venta: prov.venta ?? "",
+      Stock: prov.stock ?? "",
+      "Fecha ingreso": fechaATexto(prov.fecha),
       "Tipo de inventario": etiquetaTipoInventario(p.tipoInventario),
     }));
   });

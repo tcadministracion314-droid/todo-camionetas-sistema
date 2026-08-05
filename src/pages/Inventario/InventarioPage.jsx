@@ -22,6 +22,22 @@ function textoProveedores(proveedores) {
   return resto.length > 0 ? `${base} +${resto.length} más` : base;
 }
 
+function stockTotal(proveedores) {
+  if (!proveedores || proveedores.length === 0) return null;
+  const valores = proveedores.map((p) => p.stock).filter((v) => v !== null && v !== undefined);
+  if (valores.length === 0) return null;
+  return valores.reduce((a, b) => a + b, 0);
+}
+
+function rangoPrecio(proveedores, campo) {
+  if (!proveedores || proveedores.length === 0) return "—";
+  const valores = proveedores.map((p) => p[campo]).filter((v) => v !== null && v !== undefined);
+  if (valores.length === 0) return "—";
+  const min = Math.min(...valores);
+  const max = Math.max(...valores);
+  return min === max ? formatoCLP(min) : `${formatoCLP(min)} – ${formatoCLP(max)}`;
+}
+
 export default function InventarioPage() {
   const { productos, loading } = useProductos();
   const [tab, setTab] = useState("todos");
@@ -206,9 +222,9 @@ export default function InventarioPage() {
                       : "—"}
                   </td>
                   <td className="p-3 text-sm">{textoProveedores(p.proveedores)}</td>
-                  <td className="p-3">{p.stock ?? "—"}</td>
-                  <td className="p-3">{formatoCLP(p.precioCosto)}</td>
-                  <td className="p-3">{formatoCLP(p.precioVenta)}</td>
+                  <td className="p-3">{stockTotal(p.proveedores) ?? "—"}</td>
+                  <td className="p-3">{rangoPrecio(p.proveedores, "costo")}</td>
+                  <td className="p-3">{rangoPrecio(p.proveedores, "venta")}</td>
                   <td className="p-3 text-xs font-bold uppercase text-marca-azul">
                     {TIPOS_INVENTARIO.find((t) => t.value === p.tipoInventario)
                       ?.label ?? p.tipoInventario}

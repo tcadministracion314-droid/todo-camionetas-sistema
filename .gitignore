@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.firebase/
 
 # Variables de entorno (claves de Firebase, etc) - nunca subir
 .env
@@ -20,6 +21,10 @@ dist-ssr
 # Datos privados del negocio (Excel de inventario, exportes, etc) - nunca subir
 datos-privados/*
 !datos-privados/README.md
+
+# Por si una clave de cuenta de servicio de Firebase/Google cae en la raíz por error
+*firebase-adminsdk*.json
+*service-account*.json
 
 # Configuración local de Claude Code (específica de esta máquina)
 .claude/settings.local.json

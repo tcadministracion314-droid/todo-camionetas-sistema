@@ -50,6 +50,12 @@ function limpiarProveedores(proveedores) {
     .map((p) => ({
       nombre: p.nombre.trim(),
       codigo: p.codigo?.trim() || null,
+      costo: p.costo !== "" && p.costo !== undefined ? Number(p.costo) : null,
+      venta: p.venta !== "" && p.venta !== undefined ? Number(p.venta) : null,
+      stock: p.stock !== "" && p.stock !== undefined ? Number(p.stock) : null,
+      fecha: p.fecha
+        ? Timestamp.fromDate(new Date(p.fecha))
+        : null,
     }))
     .filter((p) => p.nombre);
 }
@@ -70,12 +76,7 @@ function limpiarDatosProducto(datos) {
     modelo: datos.modelo.trim(),
     anioDesde: datos.anioDesde ? Number(datos.anioDesde) : null,
     anioHasta: datos.anioHasta ? Number(datos.anioHasta) : null,
-    stock: datos.stock !== "" ? Number(datos.stock) : null,
-    precioCosto: datos.precioCosto !== "" ? Number(datos.precioCosto) : null,
-    precioVenta: datos.precioVenta !== "" ? Number(datos.precioVenta) : null,
-    fechaIngreso: datos.fechaIngreso
-      ? Timestamp.fromDate(new Date(datos.fechaIngreso))
-      : null,
+    glosaTecnica: datos.glosaTecnica?.trim() || null,
     fotoUrl: datos.fotoUrl || null,
     tipoInventario: datos.tipoInventario,
     proveedores,

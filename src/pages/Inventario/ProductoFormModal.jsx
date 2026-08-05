@@ -18,6 +18,15 @@ function fechaAInputValue(fecha) {
   return date.toISOString().slice(0, 10);
 }
 
+const PROVEEDOR_VACIO = {
+  nombre: "",
+  codigo: "",
+  costo: "",
+  venta: "",
+  stock: "",
+  fecha: new Date().toISOString().slice(0, 10),
+};
+
 const FORM_VACIO = {
   nombre: "",
   marcaRepuesto: "",
@@ -28,12 +37,9 @@ const FORM_VACIO = {
   modelo: "",
   anioDesde: "",
   anioHasta: "",
-  stock: "",
-  precioCosto: "",
-  precioVenta: "",
-  fechaIngreso: new Date().toISOString().slice(0, 10),
+  glosaTecnica: "",
   tipoInventario: "en_bodega",
-  proveedores: [{ nombre: "", codigo: "" }],
+  proveedores: [PROVEEDOR_VACIO],
   codigoOriginal: "",
   fotoUrl: "",
 };
@@ -47,18 +53,19 @@ export default function ProductoFormModal({ producto, onClose }) {
           ...producto,
           anioDesde: producto.anioDesde ?? "",
           anioHasta: producto.anioHasta ?? "",
-          stock: producto.stock ?? "",
-          precioCosto: producto.precioCosto ?? "",
-          precioVenta: producto.precioVenta ?? "",
-          fechaIngreso: fechaAInputValue(producto.fechaIngreso),
+          glosaTecnica: producto.glosaTecnica || "",
           subcategoria: producto.subcategoria || SUBCATEGORIAS_ACCESORIO[0],
           proveedores:
             producto.proveedores?.length > 0
               ? producto.proveedores.map((p) => ({
                   nombre: p.nombre || "",
                   codigo: p.codigo || "",
+                  costo: p.costo ?? "",
+                  venta: p.venta ?? "",
+                  stock: p.stock ?? "",
+                  fecha: fechaAInputValue(p.fecha),
                 }))
-              : [{ nombre: "", codigo: "" }],
+              : [PROVEEDOR_VACIO],
           codigoOriginal: producto.codigoOriginal || "",
         }
       : FORM_VACIO
@@ -88,7 +95,7 @@ export default function ProductoFormModal({ producto, onClose }) {
   function agregarProveedor() {
     setForm((prev) => ({
       ...prev,
-      proveedores: [...prev.proveedores, { nombre: "", codigo: "" }],
+      proveedores: [...prev.proveedores, { ...PROVEEDOR_VACIO }],
     }));
   }
 
@@ -143,7 +150,7 @@ export default function ProductoFormModal({ producto, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto border-4 border-marca-rojo bg-white p-6">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto border-4 border-marca-rojo bg-white p-6">
         <h2 className="mb-4 text-xl font-black uppercase text-marca-azul">
           {esEdicion ? "Editar producto" : "Nuevo producto"}
         </h2>
@@ -287,76 +294,7 @@ export default function ProductoFormModal({ producto, onClose }) {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label
-                htmlFor="stock"
-                className="mb-1 block text-sm font-bold text-marca-azul"
-              >
-                Stock
-              </label>
-              <input
-                id="stock"
-                type="number"
-                value={form.stock}
-                onChange={(e) => actualizarCampo("stock", e.target.value)}
-                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="precioCosto"
-                className="mb-1 block text-sm font-bold text-marca-azul"
-              >
-                Precio costo
-              </label>
-              <input
-                id="precioCosto"
-                type="number"
-                value={form.precioCosto}
-                onChange={(e) =>
-                  actualizarCampo("precioCosto", e.target.value)
-                }
-                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="precioVenta"
-                className="mb-1 block text-sm font-bold text-marca-azul"
-              >
-                Precio venta
-              </label>
-              <input
-                id="precioVenta"
-                type="number"
-                value={form.precioVenta}
-                onChange={(e) =>
-                  actualizarCampo("precioVenta", e.target.value)
-                }
-                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
-              />
-            </div>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="fechaIngreso"
-                className="mb-1 block text-sm font-bold text-marca-azul"
-              >
-                Fecha de ingreso
-              </label>
-              <input
-                id="fechaIngreso"
-                type="date"
-                value={form.fechaIngreso}
-                onChange={(e) =>
-                  actualizarCampo("fechaIngreso", e.target.value)
-                }
-                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
-              />
-            </div>
             <div>
               <label
                 htmlFor="tipoInventario"
@@ -379,30 +317,47 @@ export default function ProductoFormModal({ producto, onClose }) {
                 ))}
               </select>
             </div>
+            <div>
+              <label
+                htmlFor="codigoOriginal"
+                className="mb-1 block text-sm font-bold text-marca-azul"
+              >
+                Código original (universal)
+              </label>
+              <input
+                id="codigoOriginal"
+                value={form.codigoOriginal}
+                onChange={(e) =>
+                  actualizarCampo("codigoOriginal", e.target.value)
+                }
+                placeholder="Déjalo vacío si aún no lo tienes"
+                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+              />
+            </div>
           </div>
 
           <div>
             <label
-              htmlFor="codigoOriginal"
+              htmlFor="glosaTecnica"
               className="mb-1 block text-sm font-bold text-marca-azul"
             >
-              Código original (universal, el mismo para todos los proveedores)
+              Glosa técnica (opcional)
             </label>
-            <input
-              id="codigoOriginal"
-              value={form.codigoOriginal}
-              onChange={(e) =>
-                actualizarCampo("codigoOriginal", e.target.value)
-              }
-              placeholder="Déjalo vacío si aún no lo tienes"
+            <textarea
+              id="glosaTecnica"
+              value={form.glosaTecnica}
+              onChange={(e) => actualizarCampo("glosaTecnica", e.target.value)}
+              rows={2}
+              placeholder="Detalle técnico adicional (medidas, especificaciones, notas...)"
               className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
             />
           </div>
 
           <div>
-            <div className="mb-1 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between">
               <span className="block text-sm font-bold text-marca-azul">
-                Proveedores (al menos uno, cada uno con su propio código)
+                Proveedores (al menos uno) — cada proveedor tiene su propio
+                código, costo, precio de venta, stock y fecha de ingreso
               </span>
               <button
                 type="button"
@@ -413,40 +368,98 @@ export default function ProductoFormModal({ producto, onClose }) {
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {form.proveedores.map((p, index) => (
-                <div key={index} className="flex items-end gap-2">
-                  <div className="flex-1">
+                <div
+                  key={index}
+                  className="border-2 border-marca-azul/30 p-3"
+                >
+                  <div className="mb-2 grid grid-cols-2 gap-2">
                     <CampoConSugerencias
-                      id={`proveedor-${index}`}
-                      label={index === 0 ? "Proveedor" : ""}
+                      id={`proveedor-nombre-${index}`}
+                      label="Proveedor"
                       value={p.nombre}
-                      onChange={(v) => actualizarProveedor(index, "nombre", v)}
+                      onChange={(v) =>
+                        actualizarProveedor(index, "nombre", v)
+                      }
                       sugerencias={proveedoresSugeridos}
                     />
-                  </div>
-                  <div className="flex-1">
-                    {index === 0 && (
+                    <div>
                       <label className="mb-1 block text-sm font-bold text-marca-azul">
                         Código del proveedor
                       </label>
-                    )}
-                    <input
-                      value={p.codigo}
-                      onChange={(e) =>
-                        actualizarProveedor(index, "codigo", e.target.value)
-                      }
-                      className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
-                    />
+                      <input
+                        value={p.codigo}
+                        onChange={(e) =>
+                          actualizarProveedor(index, "codigo", e.target.value)
+                        }
+                        className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                      />
+                    </div>
                   </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className="mb-1 block text-sm font-bold text-marca-azul">
+                        Costo
+                      </label>
+                      <input
+                        type="number"
+                        value={p.costo}
+                        onChange={(e) =>
+                          actualizarProveedor(index, "costo", e.target.value)
+                        }
+                        className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-bold text-marca-azul">
+                        Venta
+                      </label>
+                      <input
+                        type="number"
+                        value={p.venta}
+                        onChange={(e) =>
+                          actualizarProveedor(index, "venta", e.target.value)
+                        }
+                        className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-bold text-marca-azul">
+                        Stock
+                      </label>
+                      <input
+                        type="number"
+                        value={p.stock}
+                        onChange={(e) =>
+                          actualizarProveedor(index, "stock", e.target.value)
+                        }
+                        className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-bold text-marca-azul">
+                        Fecha ingreso
+                      </label>
+                      <input
+                        type="date"
+                        value={p.fecha}
+                        onChange={(e) =>
+                          actualizarProveedor(index, "fecha", e.target.value)
+                        }
+                        className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                      />
+                    </div>
+                  </div>
+
                   {form.proveedores.length > 1 && (
                     <button
                       type="button"
                       onClick={() => quitarProveedor(index)}
-                      className="px-2 py-2 font-bold text-marca-rojo"
-                      aria-label="Quitar proveedor"
+                      className="mt-2 text-sm font-bold text-marca-rojo hover:underline"
                     >
-                      ✕
+                      Quitar este proveedor
                     </button>
                   )}
                 </div>
@@ -478,9 +491,7 @@ export default function ProductoFormModal({ producto, onClose }) {
             )}
           </div>
 
-          {error && (
-            <p className="font-bold text-marca-rojo">{error}</p>
-          )}
+          {error && <p className="font-bold text-marca-rojo">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-2">
             <button
