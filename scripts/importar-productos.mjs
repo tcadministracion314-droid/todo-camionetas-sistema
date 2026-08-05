@@ -64,9 +64,16 @@ function numeroONull(v) {
 
 // --- Leer y mapear celdas combinadas ---
 const buffer = fs.readFileSync(rutaExcel);
-const libro = XLSX.read(buffer, { type: "buffer" });
+const libro = XLSX.read(buffer, { type: "buffer", cellStyles: true });
 const hoja = libro.Sheets[libro.SheetNames[0]];
 const rango = XLSX.utils.decode_range(hoja["!ref"]);
+
+const COLORES_VERDE = new Set(["00FF00", "CCFF32"]);
+function filaEsVerde(r) {
+  const celda = hoja[XLSX.utils.encode_cell({ r, c: 0 })];
+  const fill = celda?.s?.fgColor || celda?.s?.bgColor;
+  return fill?.rgb ? COLORES_VERDE.has(fill.rgb) : false;
+}
 
 const origenPorCelda = new Map();
 for (const m of hoja["!merges"] || []) {
@@ -134,6 +141,7 @@ for (let r = rango.s.r; r <= rango.e.r; r++) {
     stock: numeroONull(stock),
     fecha: excelFechaADate(fecha),
     codigoOriginal: limpiarEspacios(codigoOriginal),
+    esVerde: filaEsVerde(r),
   });
 }
 
@@ -167,12 +175,16 @@ for (const fila of filasProcesadas) {
       fotoUrl: null,
       tipoInventario: "en_bodega",
       proveedores: [],
+      _puedeSerProyectado: true,
     });
   }
 
   const producto = productosPorClave.get(clave);
   if (!producto.codigoOriginal && fila.codigoOriginal) {
     producto.codigoOriginal = fila.codigoOriginal;
+  }
+  if (fila.esVerde || fila.stock !== null) {
+    producto._puedeSerProyectado = false;
   }
   producto.proveedores.push({
     nombre: fila.importador || PROVEEDOR_RELLENO,
@@ -185,6 +197,10 @@ for (const fila of filasProcesadas) {
 }
 
 const productos = [...productosPorClave.values()];
+for (const p of productos) {
+  p.tipoInventario = p._puedeSerProyectado ? "proyectado" : "en_bodega";
+  delete p._puedeSerProyectado;
+}
 
 // --- Resumen ---
 console.log("=== Resumen de importación ===");
@@ -200,6 +216,11 @@ const porCategoria = productos.reduce((acc, p) => {
   return acc;
 }, {});
 console.log("Por categoría:", porCategoria);
+const porTipoInventario = productos.reduce((acc, p) => {
+  acc[p.tipoInventario] = (acc[p.tipoInventario] || 0) + 1;
+  return acc;
+}, {});
+console.log("Por tipo de inventario:", porTipoInventario);
 console.log("\nEjemplo de 2 productos armados:");
 console.log(JSON.stringify(productos[0], null, 2));
 console.log(JSON.stringify(productos[Math.floor(productos.length / 2)], null, 2));

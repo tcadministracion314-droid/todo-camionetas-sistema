@@ -156,6 +156,20 @@ real (confirmada inspeccionando el archivo, lógica embebida en
   cual y que el usuario lo corrija manualmente si hace falta, no es bloqueante.
 - El 66% de las filas (2.247) no tenían Importador — se importaron con el proveedor de
   relleno **"Sin proveedor especificado"**, para no perder su costo/precio/stock.
+- **Color de fila (verde vs blanco) → `tipoInventario`**: en la columna A, 1.279 filas
+  tienen fondo verde (`00FF00` o `CCFF32`) y el resto está sin color. Se verificó con los
+  propios datos: las filas verdes casi siempre tienen precio de Venta y Proveedor
+  cargados (95%/83%); las blancas casi nunca (3%/5%) aunque muchas sí tienen Stock. El
+  usuario explicó que hay productos comprados pero "no destacados oportunamente" (o sea,
+  el color no siempre es confiable por sí solo). **Regla final acordada**: un producto
+  queda en `proyectado` solo si TODAS sus filas de origen son blancas Y ninguna tiene
+  Stock cargado; si tiene alguna fila verde o alguna fila con Stock (aunque sea blanca),
+  se queda en `en_bodega`. Resultado real: 264 productos → `proyectado`, 2.567 →
+  `en_bodega`. Aplicado con `scripts/actualizar-tipo-inventario.mjs` (script de
+  actualización dirigida, no reimporta — hace `batch.update` solo del campo
+  `tipoInventario` en los documentos que ya existían, matcheando por
+  nombre+marcaRepuesto+modelo+anioDesde+anioHasta; corre en modo simulación por defecto,
+  `--escribir` para aplicar).
 
 **Resultado de la importación real** (ejecutada con `node scripts/importar-productos.mjs
 --escribir`, usando la cuenta de servicio): **2.831 productos** creados (2.685 repuestos,
