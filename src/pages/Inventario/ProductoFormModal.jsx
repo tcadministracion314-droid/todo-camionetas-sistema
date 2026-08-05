@@ -20,7 +20,8 @@ function fechaAInputValue(fecha) {
 
 const FORM_VACIO = {
   nombre: "",
-  marca: "",
+  marcaRepuesto: "",
+  marcaVehiculo: "",
   categoria: "repuesto",
   subcategoria: SUBCATEGORIAS_ACCESORIO[0],
   tipoRepuesto: "",
@@ -66,7 +67,8 @@ export default function ProductoFormModal({ producto, onClose }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
-  const { valores: marcas } = useCatalogo("marcas");
+  const { valores: marcasRepuesto } = useCatalogo("marcasRepuesto");
+  const { valores: marcasVehiculo } = useCatalogo("marcasVehiculo");
   const { valores: tiposRepuesto } = useCatalogo("tiposRepuesto");
   const { valores: proveedoresSugeridos } = useCatalogo("proveedores");
 
@@ -155,27 +157,35 @@ export default function ProductoFormModal({ producto, onClose }) {
 
           <div className="grid grid-cols-2 gap-4">
             <CampoConSugerencias
-              id="marca"
-              label="Marca"
-              value={form.marca}
-              onChange={(v) => actualizarCampo("marca", v)}
-              sugerencias={marcas}
+              id="marcaRepuesto"
+              label="Marca del repuesto (fabricante, ej. Bosch)"
+              value={form.marcaRepuesto}
+              onChange={(v) => actualizarCampo("marcaRepuesto", v)}
+              sugerencias={marcasRepuesto}
               required
             />
-            <div>
-              <label
-                htmlFor="modelo"
-                className="mb-1 block text-sm font-bold text-marca-azul"
-              >
-                Modelo de vehículo compatible
-              </label>
-              <input
-                id="modelo"
-                value={form.modelo}
-                onChange={(e) => actualizarCampo("modelo", e.target.value)}
-                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
-              />
-            </div>
+            <CampoConSugerencias
+              id="marcaVehiculo"
+              label="Marca del vehículo compatible (opcional)"
+              value={form.marcaVehiculo}
+              onChange={(v) => actualizarCampo("marcaVehiculo", v)}
+              sugerencias={marcasVehiculo}
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="modelo"
+              className="mb-1 block text-sm font-bold text-marca-azul"
+            >
+              Modelo de vehículo compatible
+            </label>
+            <input
+              id="modelo"
+              value={form.modelo}
+              onChange={(e) => actualizarCampo("modelo", e.target.value)}
+              className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

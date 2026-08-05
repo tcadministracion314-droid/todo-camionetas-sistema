@@ -37,13 +37,22 @@ las explicaciones y commits deben ser claras, en español simple, sin asumir con
 ## Secciones del sistema
 
 1. **Inventario** — dividido en 3 subtipos: `en_bodega`, `proyectado` (aún no comprado),
-   `pieza_unica_encargada`. Producto: nombre, marca (dinámica, se crean nuevas al vuelo),
+   `pieza_unica_encargada`. Producto: nombre, **marca del repuesto** (fabricante de la
+   pieza, ej. Bosch, Monroe — obligatoria, dinámica), **marca del vehículo compatible**
+   (ej. Toyota, Nissan — opcional, dinámica, dato DISTINTO de la marca del repuesto),
    categoría (`repuesto` | `accesorio`), si es accesorio → subcategoría
    (Herramientas / Aditivos / Adornos-aromatizantes), tipo de repuesto (campo separado de
-   Marca — ej. Alternadores, Amortiguadores, Bujías, Bombas de Agua, Balatas, Rótulas;
-   lista abierta, se crean tipos nuevos dinámicamente igual que las marcas), modelo de
-   vehículo compatible, año desde/hasta, stock, precio costo, precio venta, fecha de
-   ingreso, foto. Buscador por marca, modelo y año.
+   ambas marcas — ej. Alternadores, Amortiguadores, Bujías, Bombas de Agua, Balatas,
+   Rótulas; lista abierta, se crean tipos nuevos dinámicamente igual que las marcas),
+   modelo de vehículo compatible, año desde/hasta, **código original/universal** (mismo
+   código reconocido por todos los proveedores; se completa manualmente con el tiempo, no
+   se auto-genera ni se busca por IA — ver sección del Excel), **proveedores** (lista, al
+   menos uno obligatorio; cada proveedor tiene su propio código para ese producto — un
+   mismo producto puede tener varios proveedores con códigos distintos), stock, precio
+   costo, precio venta, fecha de ingreso, foto (opcional; en la lista se muestra un botón
+   "Ver foto" que carga la imagen solo al hacer clic, no automáticamente — así no se
+   relentiza la lista con 1.700 productos). Buscador por marca (de repuesto o de
+   vehículo), modelo y año; lista paginada de a 50.
 2. **Ventas** — buscador de productos con autocompletado libre (nombre/marca/modelo a la
    vez, sin elegir filtro primero), cantidad, descuento con switch %/$ , método de pago
    (efectivo, débito, crédito, transferencia). **Venta por encargo**: para productos fuera
@@ -67,7 +76,21 @@ las explicaciones y commits deben ser claras, en español simple, sin asumir con
 Decisiones tomadas sobre estos datos:
 
 - **Importador** = proveedor/distribuidor del producto (dato distinto de Marca) → se
-  mapea a un campo `proveedor` en Firestore.
+  mapea a la lista `proveedores` en Firestore (cada fila del Excel = un producto con un
+  proveedor y su código; si el mismo producto aparece en varias filas con distinto
+  Importador, el script debe agruparlas en un solo producto con varios proveedores).
+- La columna **"Marca"** del Excel corresponde a **marca del vehículo** (va agrupada con
+  Modelo y Año). La **marca del repuesto** (fabricante de la pieza, campo obligatorio en
+  el sistema) **no está** como columna propia en el Excel — pendiente de decidir cómo se
+  completa al importar (¿inferir del nombre del Artículo, dejar un valor genérico
+  temporal tipo "Sin marca", o pedir que se complete manualmente después?). Resolver esto
+  antes de construir el script de importación (task pendiente).
+- **"Código Original"** = código universal (el mismo para todos los proveedores). El
+  Excel actual **no tiene este dato cargado**. No se debe intentar buscarlo/completarlo
+  automáticamente vía IA o web scraping a granel — el riesgo de asignar códigos
+  incorrectos en repuestos automotrices es alto (pieza equivocada). Queda vacío al
+  importar; se completa manualmente con el tiempo, producto por producto, cuando el
+  negocio tenga el dato a mano.
 - El Excel **no tiene** columnas de Categoría ni Tipo de repuesto. El script de importación
   intenta **inferir** ambas por palabras clave en el nombre del `Artículo` (ej. "alternador"
   → tipo `Alternadores`, categoría `repuesto`). Lo que no se puede inferir queda vacío/null
@@ -75,8 +98,9 @@ Decisiones tomadas sobre estos datos:
   automática, no se espera que sea perfecta.
 - Filas incompletas (sin stock o sin fecha, etc.) **no deben romper el script** — esos
   campos quedan vacíos/null en Firestore.
-- La lista de "Tipo de repuesto" es **abierta**: se pueden crear tipos nuevos dinámicamente
-  desde el sistema, igual que las Marcas. No hay una lista cerrada fija.
+- Las listas de "Tipo de repuesto", "Marca del repuesto", "Marca del vehículo" y
+  "Proveedores" son **abiertas**: se pueden crear valores nuevos dinámicamente desde el
+  sistema. No hay listas cerradas fijas.
 
 ## Convenciones de código
 

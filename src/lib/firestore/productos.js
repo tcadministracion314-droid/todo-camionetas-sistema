@@ -62,7 +62,8 @@ function limpiarDatosProducto(datos) {
 
   return {
     nombre: datos.nombre.trim(),
-    marca: datos.marca.trim(),
+    marcaRepuesto: datos.marcaRepuesto.trim(),
+    marcaVehiculo: datos.marcaVehiculo?.trim() || null,
     categoria: datos.categoria,
     subcategoria: datos.categoria === "accesorio" ? datos.subcategoria : null,
     tipoRepuesto: datos.categoria === "repuesto" ? datos.tipoRepuesto?.trim() || null : null,
@@ -86,7 +87,10 @@ export async function crearProducto(datos) {
   const limpio = limpiarDatosProducto(datos);
 
   await Promise.all([
-    crearValorCatalogoSiNoExiste("marcas", limpio.marca),
+    crearValorCatalogoSiNoExiste("marcasRepuesto", limpio.marcaRepuesto),
+    limpio.marcaVehiculo
+      ? crearValorCatalogoSiNoExiste("marcasVehiculo", limpio.marcaVehiculo)
+      : Promise.resolve(),
     limpio.tipoRepuesto
       ? crearValorCatalogoSiNoExiste("tiposRepuesto", limpio.tipoRepuesto)
       : Promise.resolve(),
@@ -106,7 +110,10 @@ export async function actualizarProducto(id, datos) {
   const limpio = limpiarDatosProducto(datos);
 
   await Promise.all([
-    crearValorCatalogoSiNoExiste("marcas", limpio.marca),
+    crearValorCatalogoSiNoExiste("marcasRepuesto", limpio.marcaRepuesto),
+    limpio.marcaVehiculo
+      ? crearValorCatalogoSiNoExiste("marcasVehiculo", limpio.marcaVehiculo)
+      : Promise.resolve(),
     limpio.tipoRepuesto
       ? crearValorCatalogoSiNoExiste("tiposRepuesto", limpio.tipoRepuesto)
       : Promise.resolve(),

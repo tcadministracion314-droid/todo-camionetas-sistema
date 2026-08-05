@@ -41,7 +41,8 @@ export default function InventarioPage() {
       if (texto) {
         const coincide =
           p.nombre?.toLowerCase().includes(texto) ||
-          p.marca?.toLowerCase().includes(texto) ||
+          p.marcaRepuesto?.toLowerCase().includes(texto) ||
+          p.marcaVehiculo?.toLowerCase().includes(texto) ||
           p.modelo?.toLowerCase().includes(texto) ||
           p.proveedores?.some((prov) =>
             prov.nombre?.toLowerCase().includes(texto)
@@ -135,7 +136,7 @@ export default function InventarioPage() {
         <input
           value={busqueda}
           onChange={(e) => cambiarFiltro(setBusqueda)(e.target.value)}
-          placeholder="Buscar por nombre, marca, modelo o proveedor..."
+          placeholder="Buscar por nombre, marca de repuesto, marca de vehículo, modelo o proveedor..."
           className="flex-1 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
         />
         <input
@@ -156,7 +157,8 @@ export default function InventarioPage() {
               <tr className="bg-marca-azul text-white">
                 <th className="p-3">Foto</th>
                 <th className="p-3">Nombre</th>
-                <th className="p-3">Marca</th>
+                <th className="p-3">Marca repuesto</th>
+                <th className="p-3">Marca vehículo</th>
                 <th className="p-3">Modelo</th>
                 <th className="p-3">Año</th>
                 <th className="p-3">Proveedor</th>
@@ -184,7 +186,8 @@ export default function InventarioPage() {
                     )}
                   </td>
                   <td className="p-3 font-bold">{p.nombre}</td>
-                  <td className="p-3">{p.marca}</td>
+                  <td className="p-3">{p.marcaRepuesto}</td>
+                  <td className="p-3">{p.marcaVehiculo || "—"}</td>
                   <td className="p-3">{p.modelo || "—"}</td>
                   <td className="p-3">
                     {p.anioDesde || p.anioHasta
@@ -224,7 +227,7 @@ export default function InventarioPage() {
               ))}
               {productosFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="p-6 text-center text-marca-azul">
+                  <td colSpan={12} className="p-6 text-center text-marca-azul">
                     No se encontraron productos.
                   </td>
                 </tr>
