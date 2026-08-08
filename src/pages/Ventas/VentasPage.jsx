@@ -7,6 +7,7 @@ import { METODOS_PAGO } from "../../lib/constants";
 import { formatoCLP } from "../../lib/format";
 import NuevaVentaForm from "./NuevaVentaForm";
 import VentaEncargoModal from "./VentaEncargoModal";
+import BuscarVentaDevolucion from "./BuscarVentaDevolucion";
 
 function tieneStock(producto) {
   return (producto.proveedores || []).some((p) => (p.stock || 0) > 0);
@@ -14,6 +15,7 @@ function tieneStock(producto) {
 
 function VentaCard({ venta }) {
   const [editando, setEditando] = useState(false);
+  const anulada = venta.estado === "anulada";
 
   async function cambiarMetodoPago(valor) {
     setEditando(false);
@@ -29,13 +31,27 @@ function VentaCard({ venta }) {
     : "";
 
   return (
-    <div className="flex items-center justify-between border-2 border-marca-azul/30 p-3">
+    <div
+      className={`flex items-center justify-between border-2 p-3 ${
+        anulada ? "border-marca-azul/10 opacity-50" : "border-marca-azul/30"
+      }`}
+    >
       <div>
         <p className="font-bold text-marca-azul">
           {venta.productoNombre}{" "}
           <span className="font-normal text-marca-azul/70">
             × {venta.cantidad}
           </span>
+          {anulada && (
+            <span className="ml-2 text-xs font-black uppercase text-marca-rojo">
+              Anulada
+            </span>
+          )}
+          {venta.tieneCambio && (
+            <span className="ml-2 text-xs font-black uppercase text-marca-azul">
+              Con cambio
+            </span>
+          )}
         </p>
         <p className="text-sm text-marca-azul/70">
           {hora} — {venta.proveedorNombre}
@@ -43,7 +59,7 @@ function VentaCard({ venta }) {
       </div>
       <div className="text-right">
         <p className="font-black text-marca-azul">{formatoCLP(venta.total)}</p>
-        {editando ? (
+        {anulada ? null : editando ? (
           <select
             autoFocus
             defaultValue={venta.metodoPago}
@@ -84,7 +100,9 @@ export default function VentasPage() {
     [productos]
   );
 
-  const totalHoy = ventasHoy.reduce((acc, v) => acc + (v.total || 0), 0);
+  const totalHoy = ventasHoy
+    .filter((v) => v.estado !== "anulada")
+    .reduce((acc, v) => acc + (v.total || 0), 0);
 
   return (
     <div>
@@ -123,6 +141,13 @@ export default function VentasPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="mt-6">
+        <h2 className="mb-3 text-lg font-black uppercase text-marca-azul">
+          Devoluciones y cambios
+        </h2>
+        <BuscarVentaDevolucion productos={productosVendibles} vendedor={user} />
       </div>
 
       {modalEncargoAbierto && (

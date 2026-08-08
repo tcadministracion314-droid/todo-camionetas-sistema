@@ -7,6 +7,7 @@ import {
   updateDoc,
   runTransaction,
   serverTimestamp,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
@@ -17,6 +18,26 @@ export function subscribeVentasVendedor(vendedorId, callback) {
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
   });
+}
+
+export async function buscarVentasParaDevolucion(texto) {
+  const snap = await getDocs(collection(db, COLECCION));
+  const activas = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((v) => !v.estado || v.estado === "activa");
+
+  const t = texto.trim().toLowerCase();
+  const filtradas = t
+    ? activas.filter(
+        (v) =>
+          v.productoNombre?.toLowerCase().includes(t) ||
+          v.marcaRepuesto?.toLowerCase().includes(t)
+      )
+    : activas;
+
+  return filtradas
+    .sort((a, b) => (b.fecha?.toMillis?.() ?? 0) - (a.fecha?.toMillis?.() ?? 0))
+    .slice(0, 20);
 }
 
 export async function registrarVenta({
