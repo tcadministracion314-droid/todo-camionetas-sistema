@@ -5,6 +5,8 @@ import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import InventarioPage from "./pages/Inventario/InventarioPage";
 import VentasPage from "./pages/Ventas/VentasPage";
+import CotizacionesPage from "./pages/Cotizaciones/CotizacionesPage";
+import HistorialPage from "./pages/Historial/HistorialPage";
 import EncargosPage from "./pages/Encargos/EncargosPage";
 import ClientesPage from "./pages/Clientes/ClientesPage";
 import ReportesPage from "./pages/Reportes/ReportesPage";
@@ -25,6 +27,8 @@ export default function App() {
             <Route index element={<Navigate to="/inventario" replace />} />
             <Route path="inventario" element={<InventarioPage />} />
             <Route path="ventas" element={<VentasPage />} />
+            <Route path="cotizaciones" element={<CotizacionesPage />} />
+            <Route path="historial" element={<HistorialPage />} />
             <Route path="encargos" element={<EncargosPage />} />
             <Route path="clientes" element={<ClientesPage />} />
             <Route path="reportes" element={<ReportesPage />} />

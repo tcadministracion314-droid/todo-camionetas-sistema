@@ -1,11 +1,24 @@
 import { useMemo, useState } from "react";
-import { formatoCLP } from "../../lib/format";
+import { formatoCLP } from "../lib/format";
 
 function stockTotal(proveedores) {
   return (proveedores || []).reduce((total, p) => total + (p.stock || 0), 0);
 }
 
-export default function BuscadorProducto({ productos, onSeleccionar }) {
+function rangoVentaMin(proveedores) {
+  const valores = (proveedores || [])
+    .map((p) => p.venta)
+    .filter((v) => v !== null && v !== undefined);
+  if (valores.length === 0) return null;
+  return Math.min(...valores);
+}
+
+export default function BuscadorProducto({
+  productos,
+  onSeleccionar,
+  label = "Buscar producto",
+  placeholder = "Nombre, marca, modelo o proveedor...",
+}) {
   const [texto, setTexto] = useState("");
   const [abierto, setAbierto] = useState(false);
 
@@ -33,9 +46,7 @@ export default function BuscadorProducto({ productos, onSeleccionar }) {
 
   return (
     <div className="relative">
-      <label className="mb-1 block text-sm font-bold text-marca-azul">
-        Buscar producto a vender
-      </label>
+      <label className="mb-1 block text-sm font-bold text-marca-azul">{label}</label>
       <input
         value={texto}
         onChange={(e) => {
@@ -43,7 +54,7 @@ export default function BuscadorProducto({ productos, onSeleccionar }) {
           setAbierto(true);
         }}
         onFocus={() => setAbierto(true)}
-        placeholder="Nombre, marca, modelo o proveedor..."
+        placeholder={placeholder}
         className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
       />
       {abierto && resultados.length > 0 && (
@@ -72,18 +83,9 @@ export default function BuscadorProducto({ productos, onSeleccionar }) {
       )}
       {abierto && texto.trim() && resultados.length === 0 && (
         <div className="absolute z-10 mt-1 w-full border-2 border-marca-azul bg-white p-3 text-sm text-marca-azul/70 shadow-lg">
-          No se encontraron productos con stock disponible.
+          No se encontraron productos.
         </div>
       )}
     </div>
   );
-}
-
-function rangoVentaMin(proveedores) {
-  const valores = (proveedores || [])
-    .filter((p) => (p.stock || 0) > 0)
-    .map((p) => p.venta)
-    .filter((v) => v !== null && v !== undefined);
-  if (valores.length === 0) return null;
-  return Math.min(...valores);
 }

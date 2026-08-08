@@ -4,6 +4,8 @@ import { useAuth } from "../context/AuthContext";
 const links = [
   { to: "/inventario", label: "Inventario" },
   { to: "/ventas", label: "Ventas" },
+  { to: "/cotizaciones", label: "Cotizaciones" },
+  { to: "/historial", label: "Historial" },
   { to: "/encargos", label: "Encargos" },
   { to: "/clientes", label: "Clientes" },
   { to: "/reportes", label: "Reportes" },

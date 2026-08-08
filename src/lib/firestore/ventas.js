@@ -22,78 +22,101 @@ export function subscribeVentasVendedor(vendedorId, callback) {
 
 export async function buscarVentasParaDevolucion(texto) {
   const snap = await getDocs(collection(db, COLECCION));
-  const activas = snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((v) => !v.estado || v.estado === "activa");
-
+  const ventas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   const t = texto.trim().toLowerCase();
-  const filtradas = t
-    ? activas.filter(
-        (v) =>
-          v.productoNombre?.toLowerCase().includes(t) ||
-          v.marcaRepuesto?.toLowerCase().includes(t)
-      )
-    : activas;
 
-  return filtradas
-    .sort((a, b) => (b.fecha?.toMillis?.() ?? 0) - (a.fecha?.toMillis?.() ?? 0))
+  const resultados = [];
+  ventas.forEach((venta) => {
+    (venta.items || []).forEach((item, itemIndex) => {
+      if (item.estado !== "activo") return;
+      const coincide =
+        !t ||
+        item.productoNombre?.toLowerCase().includes(t) ||
+        item.marcaRepuesto?.toLowerCase().includes(t);
+      if (coincide) resultados.push({ venta, itemIndex, item });
+    });
+  });
+
+  return resultados
+    .sort((a, b) => (b.venta.fecha?.toMillis?.() ?? 0) - (a.venta.fecha?.toMillis?.() ?? 0))
     .slice(0, 20);
 }
 
 export async function registrarVenta({
-  producto,
-  proveedorNombre,
-  cantidad,
-  precioUnitario,
+  items,
   descuentoTipo,
   descuentoValor,
   metodoPago,
   vendedor,
 }) {
-  const cantidadNum = Number(cantidad);
-  const precioNum = Number(precioUnitario);
-  const subtotal = precioNum * cantidadNum;
+  const itemsCalculados = items.map((it) => {
+    const cantidadNum = Number(it.cantidad);
+    const precioNum = Number(it.precioUnitario);
+    return {
+      productoId: it.producto.id,
+      productoNombre: it.producto.nombre,
+      marcaRepuesto: it.producto.marcaRepuesto,
+      proveedorNombre: it.proveedorNombre,
+      cantidad: cantidadNum,
+      precioUnitario: precioNum,
+      subtotal: cantidadNum * precioNum,
+      estado: "activo",
+    };
+  });
+
+  const subtotal = itemsCalculados.reduce((acc, it) => acc + it.subtotal, 0);
   const descuentoMonto =
     descuentoTipo === "porcentaje"
       ? Math.round((subtotal * (Number(descuentoValor) || 0)) / 100)
       : Number(descuentoValor) || 0;
   const total = Math.max(0, subtotal - descuentoMonto);
 
-  const productoRef = doc(db, "productos", producto.id);
   const ventaRef = doc(collection(db, COLECCION));
+  const productoIds = [...new Set(items.map((it) => it.producto.id))];
+  const refsPorId = new Map(productoIds.map((id) => [id, doc(db, "productos", id)]));
 
   await runTransaction(db, async (tx) => {
-    const snap = await tx.get(productoRef);
-    if (!snap.exists()) throw new Error("El producto ya no existe en Inventario.");
-
-    const datos = snap.data();
-    const proveedores = datos.proveedores || [];
-    const idx = proveedores.findIndex((p) => p.nombre === proveedorNombre);
-    if (idx === -1) {
-      throw new Error("Ese proveedor ya no está disponible para este producto.");
+    const snapsPorId = new Map();
+    for (const id of productoIds) {
+      snapsPorId.set(id, await tx.get(refsPorId.get(id)));
     }
 
-    const stockActual = proveedores[idx].stock || 0;
-    if (stockActual < cantidadNum) {
-      throw new Error(
-        `No hay stock suficiente en ${proveedorNombre} (quedan ${stockActual}).`
-      );
-    }
+    const proveedoresPorId = new Map();
+    productoIds.forEach((id) => {
+      const snap = snapsPorId.get(id);
+      if (!snap.exists()) {
+        throw new Error("Uno de los productos de la venta ya no existe en Inventario.");
+      }
+      proveedoresPorId.set(id, [...(snap.data().proveedores || [])]);
+    });
 
-    const nuevosProveedores = proveedores.map((p, i) =>
-      i === idx ? { ...p, stock: stockActual - cantidadNum } : p
-    );
-    tx.update(productoRef, { proveedores: nuevosProveedores, updatedAt: serverTimestamp() });
+    items.forEach((it) => {
+      const proveedores = proveedoresPorId.get(it.producto.id);
+      const idx = proveedores.findIndex((p) => p.nombre === it.proveedorNombre);
+      if (idx === -1) {
+        throw new Error(`Ese proveedor ya no está disponible para "${it.producto.nombre}".`);
+      }
+      const cantidadNum = Number(it.cantidad);
+      const stockActual = proveedores[idx].stock || 0;
+      if (stockActual < cantidadNum) {
+        throw new Error(
+          `No hay stock suficiente de "${it.producto.nombre}" en ${it.proveedorNombre} (quedan ${stockActual}).`
+        );
+      }
+      proveedores[idx] = { ...proveedores[idx], stock: stockActual - cantidadNum };
+    });
+
+    productoIds.forEach((id) => {
+      tx.update(refsPorId.get(id), {
+        proveedores: proveedoresPorId.get(id),
+        updatedAt: serverTimestamp(),
+      });
+    });
 
     tx.set(ventaRef, {
       vendedorId: vendedor.uid,
       vendedorEmail: vendedor.email,
-      productoId: producto.id,
-      productoNombre: producto.nombre,
-      marcaRepuesto: producto.marcaRepuesto,
-      proveedorNombre,
-      cantidad: cantidadNum,
-      precioUnitario: precioNum,
+      items: itemsCalculados,
       subtotal,
       descuentoTipo,
       descuentoValor: Number(descuentoValor) || 0,

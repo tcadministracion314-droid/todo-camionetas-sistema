@@ -4,7 +4,14 @@ import { formatoCLP } from "../../lib/format";
 import { buscarOCrearCliente } from "../../lib/firestore/clientes";
 import { registrarDevolucion } from "../../lib/firestore/devoluciones";
 
-export default function DevolucionModal({ venta, vendedor, onClose }) {
+export default function DevolucionModal({ venta, itemIndex, vendedor, onClose }) {
+  const item = venta.items[itemIndex];
+  const proporcion = venta.subtotal > 0 ? item.subtotal / venta.subtotal : 0;
+  const montoEstimado = Math.max(
+    0,
+    item.subtotal - Math.round((venta.descuentoMonto || 0) * proporcion)
+  );
+
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteTelefono, setClienteTelefono] = useState("");
   const [motivo, setMotivo] = useState("reembolso");
@@ -31,6 +38,7 @@ export default function DevolucionModal({ venta, vendedor, onClose }) {
 
       await registrarDevolucion({
         venta,
+        itemIndex,
         motivo,
         metodoPagoDevolucion,
         clienteId,
@@ -57,9 +65,11 @@ export default function DevolucionModal({ venta, vendedor, onClose }) {
 
         <div className="mb-4 border-2 border-marca-azul/30 bg-marca-azul/5 p-3">
           <p className="font-bold text-marca-azul">
-            {venta.productoNombre} × {venta.cantidad}
+            {item.productoNombre} × {item.cantidad}
           </p>
-          <p className="text-sm text-marca-azul/70">Monto a devolver: {formatoCLP(venta.total)}</p>
+          <p className="text-sm text-marca-azul/70">
+            Monto a devolver: {formatoCLP(montoEstimado)}
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -142,7 +152,7 @@ export default function DevolucionModal({ venta, vendedor, onClose }) {
             </div>
           ) : (
             <p className="text-sm text-marca-azul/70">
-              Se le va a acreditar {formatoCLP(venta.total)} en su ficha de cliente,
+              Se le va a acreditar {formatoCLP(montoEstimado)} en su ficha de cliente,
               para usarlo en una compra futura.
             </p>
           )}

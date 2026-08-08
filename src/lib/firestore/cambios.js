@@ -4,7 +4,8 @@ import { db } from "../../firebase";
 const COLECCION = "cambios";
 
 export async function registrarCambio({
-  ventaOriginal,
+  venta,
+  itemIndex,
   productoNuevo,
   proveedorNuevoNombre,
   cantidadNueva,
@@ -17,32 +18,42 @@ export async function registrarCambio({
   vendedor,
 }) {
   const precioNuevoTotal = precioUnitarioNuevo * cantidadNueva;
-  const diferencia = precioNuevoTotal - ventaOriginal.total;
 
-  const productoOriginalRef = doc(db, "productos", ventaOriginal.productoId);
+  const productoOriginalRef = doc(db, "productos", venta.items[itemIndex].productoId);
   const productoNuevoRef = doc(db, "productos", productoNuevo.id);
   const cambioRef = doc(collection(db, COLECCION));
-  const ventaOriginalRef = doc(db, "ventas", ventaOriginal.id);
+  const ventaRef = doc(db, "ventas", venta.id);
   const clienteRef = doc(db, "clientes", clienteId);
 
   await runTransaction(db, async (tx) => {
     const origSnap = await tx.get(productoOriginalRef);
     const nuevoSnap = await tx.get(productoNuevoRef);
+    const ventaSnap = await tx.get(ventaRef);
     const clienteSnap = await tx.get(clienteRef);
 
     if (!origSnap.exists() || !nuevoSnap.exists()) {
       throw new Error("Alguno de los dos productos ya no existe en Inventario.");
     }
+    if (!ventaSnap.exists()) throw new Error("La venta ya no existe.");
+
+    const itemsActuales = ventaSnap.data().items || [];
+    const itemActual = itemsActuales[itemIndex];
+    if (!itemActual || itemActual.estado !== "activo") {
+      throw new Error("Ese producto de la venta ya fue devuelto o cambiado.");
+    }
+
+    const subtotalVenta = ventaSnap.data().subtotal || 0;
+    const descuentoMontoVenta = ventaSnap.data().descuentoMonto || 0;
+    const proporcion = subtotalVenta > 0 ? itemActual.subtotal / subtotalVenta : 0;
+    const descuentoProrateado = Math.round(descuentoMontoVenta * proporcion);
+    const precioDevuelto = Math.max(0, itemActual.subtotal - descuentoProrateado);
+    const diferencia = precioNuevoTotal - precioDevuelto;
 
     const origProveedores = origSnap.data().proveedores || [];
-    const origIdx = origProveedores.findIndex(
-      (p) => p.nombre === ventaOriginal.proveedorNombre
-    );
-    if (origIdx === -1) {
-      throw new Error("El proveedor del producto devuelto ya no existe.");
-    }
+    const origIdx = origProveedores.findIndex((p) => p.nombre === itemActual.proveedorNombre);
+    if (origIdx === -1) throw new Error("El proveedor del producto devuelto ya no existe.");
     const origProveedoresNuevos = origProveedores.map((p, i) =>
-      i === origIdx ? { ...p, stock: (p.stock || 0) + ventaOriginal.cantidad } : p
+      i === origIdx ? { ...p, stock: (p.stock || 0) + itemActual.cantidad } : p
     );
 
     const nuevoProveedores = nuevoSnap.data().proveedores || [];
@@ -66,18 +77,23 @@ export async function registrarCambio({
       proveedores: nuevoProveedoresActualizados,
       updatedAt: serverTimestamp(),
     });
-    tx.update(ventaOriginalRef, { tieneCambio: true, cambioId: cambioRef.id });
+
+    const itemsActualizados = itemsActuales.map((it, i) =>
+      i === itemIndex ? { ...it, estado: "cambiado", cambioId: cambioRef.id } : it
+    );
+    tx.update(ventaRef, { items: itemsActualizados });
 
     tx.set(cambioRef, {
-      ventaOriginalId: ventaOriginal.id,
+      ventaId: venta.id,
+      itemIndex,
       clienteId,
       clienteNombre,
       clienteTelefono,
-      productoDevueltoId: ventaOriginal.productoId,
-      productoDevueltoNombre: ventaOriginal.productoNombre,
-      proveedorDevuelto: ventaOriginal.proveedorNombre,
-      cantidadDevuelta: ventaOriginal.cantidad,
-      precioDevuelto: ventaOriginal.total,
+      productoDevueltoId: itemActual.productoId,
+      productoDevueltoNombre: itemActual.productoNombre,
+      proveedorDevuelto: itemActual.proveedorNombre,
+      cantidadDevuelta: itemActual.cantidad,
+      precioDevuelto,
       productoNuevoId: productoNuevo.id,
       productoNuevoNombre: productoNuevo.nombre,
       proveedorNuevo: proveedorNuevoNombre,

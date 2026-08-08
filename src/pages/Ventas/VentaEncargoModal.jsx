@@ -2,7 +2,6 @@ import { useState } from "react";
 import CampoConSugerencias from "../../components/CampoConSugerencias";
 import { useCatalogo } from "../../hooks/useCatalogo";
 import { METODOS_PAGO } from "../../lib/constants";
-import { crearProducto } from "../../lib/firestore/productos";
 import { buscarOCrearCliente } from "../../lib/firestore/clientes";
 import { crearEncargo } from "../../lib/firestore/encargos";
 
@@ -66,30 +65,7 @@ export default function VentaEncargoModal({ onClose, vendedor }) {
         correo: form.clienteCorreo,
       });
 
-      const productoRef = await crearProducto({
-        nombre: form.descripcionProducto,
-        marcaRepuesto: form.marcaRepuesto.trim() || "Sin especificar",
-        marcaVehiculo: form.vehiculoMarca,
-        categoria: "repuesto",
-        modelo: form.vehiculoModelo,
-        anioDesde: form.vehiculoAnio,
-        anioHasta: form.vehiculoAnio,
-        tipoInventario: "pieza_unica_encargada",
-        proveedores: [
-          {
-            nombre: form.proveedor,
-            codigo: "",
-            costo: form.costo,
-            venta: form.precioVenta,
-            stock: "0",
-            fecha: new Date().toISOString().slice(0, 10),
-          },
-        ],
-        codigoOriginal: "",
-      });
-
       await crearEncargo({
-        productoId: productoRef.id,
         clienteId,
         clienteNombre: form.clienteNombre.trim(),
         clienteTelefono: form.clienteTelefono.trim(),
@@ -98,7 +74,9 @@ export default function VentaEncargoModal({ onClose, vendedor }) {
         vehiculoModelo: form.vehiculoModelo || null,
         vehiculoAnio: form.vehiculoAnio ? Number(form.vehiculoAnio) : null,
         descripcionProducto: form.descripcionProducto.trim(),
+        marcaRepuesto: form.marcaRepuesto.trim() || null,
         proveedor: form.proveedor.trim(),
+        costo: form.costo ? Number(form.costo) : null,
         precioTotal: Number(form.precioVenta),
         montoAbonado,
         metodoPagoAbono: form.pagoCompleto ? "efectivo" : form.metodoPagoAbono,

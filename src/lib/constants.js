@@ -12,7 +12,6 @@ export const SUBCATEGORIAS_ACCESORIO = [
 export const TIPOS_INVENTARIO = [
   { value: "en_bodega", label: "En bodega" },
   { value: "proyectado", label: "Proyectado" },
-  { value: "pieza_unica_encargada", label: "Pieza única encargada" },
 ];
 
 export const METODOS_PAGO = [

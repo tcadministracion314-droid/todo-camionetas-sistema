@@ -13,9 +13,15 @@ function tieneStock(producto) {
   return (producto.proveedores || []).some((p) => (p.stock || 0) > 0);
 }
 
+function totalActivo(venta) {
+  const devuelto = (venta.items || [])
+    .filter((it) => it.estado === "anulado")
+    .reduce((acc, it) => acc + (it.montoDevuelto || 0), 0);
+  return Math.max(0, (venta.total || 0) - devuelto);
+}
+
 function VentaCard({ venta }) {
   const [editando, setEditando] = useState(false);
-  const anulada = venta.estado === "anulada";
 
   async function cambiarMetodoPago(valor) {
     setEditando(false);
@@ -30,60 +36,63 @@ function VentaCard({ venta }) {
       })
     : "";
 
+  const total = totalActivo(venta);
+
   return (
-    <div
-      className={`flex items-center justify-between border-2 p-3 ${
-        anulada ? "border-marca-azul/10 opacity-50" : "border-marca-azul/30"
-      }`}
-    >
-      <div>
-        <p className="font-bold text-marca-azul">
-          {venta.productoNombre}{" "}
-          <span className="font-normal text-marca-azul/70">
-            × {venta.cantidad}
-          </span>
-          {anulada && (
-            <span className="ml-2 text-xs font-black uppercase text-marca-rojo">
-              Anulada
-            </span>
+    <div className="border-2 border-marca-azul/30 p-3">
+      <div className="flex items-start justify-between">
+        <div>
+          {(venta.items || []).map((it, i) => (
+            <p key={i} className="font-bold text-marca-azul">
+              {it.productoNombre}{" "}
+              <span className="font-normal text-marca-azul/70">× {it.cantidad}</span>
+              {it.estado === "anulado" && (
+                <span className="ml-2 text-xs font-black uppercase text-marca-rojo">
+                  Anulado
+                </span>
+              )}
+              {it.estado === "cambiado" && (
+                <span className="ml-2 text-xs font-black uppercase text-marca-azul">
+                  Cambiado
+                </span>
+              )}
+            </p>
+          ))}
+          <p className="text-sm text-marca-azul/70">{hora}</p>
+        </div>
+        <div className="text-right">
+          <p className="font-black text-marca-azul">{formatoCLP(total)}</p>
+          {total !== venta.total && (
+            <p className="text-xs text-marca-azul/50 line-through">
+              {formatoCLP(venta.total)}
+            </p>
           )}
-          {venta.tieneCambio && (
-            <span className="ml-2 text-xs font-black uppercase text-marca-azul">
-              Con cambio
-            </span>
+          {editando ? (
+            <select
+              autoFocus
+              defaultValue={venta.metodoPago}
+              onChange={(e) => cambiarMetodoPago(e.target.value)}
+              onBlur={() => setEditando(false)}
+              className="mt-1 border-2 border-marca-rojo px-2 py-1 text-sm outline-none"
+            >
+              {METODOS_PAGO.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditando(true)}
+              className="mt-1 text-sm font-bold text-marca-azul hover:underline"
+            >
+              {METODOS_PAGO.find((m) => m.value === venta.metodoPago)?.label ??
+                venta.metodoPago}{" "}
+              (editar)
+            </button>
           )}
-        </p>
-        <p className="text-sm text-marca-azul/70">
-          {hora} — {venta.proveedorNombre}
-        </p>
-      </div>
-      <div className="text-right">
-        <p className="font-black text-marca-azul">{formatoCLP(venta.total)}</p>
-        {anulada ? null : editando ? (
-          <select
-            autoFocus
-            defaultValue={venta.metodoPago}
-            onChange={(e) => cambiarMetodoPago(e.target.value)}
-            onBlur={() => setEditando(false)}
-            className="mt-1 border-2 border-marca-rojo px-2 py-1 text-sm outline-none"
-          >
-            {METODOS_PAGO.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditando(true)}
-            className="mt-1 text-sm font-bold text-marca-azul hover:underline"
-          >
-            {METODOS_PAGO.find((m) => m.value === venta.metodoPago)?.label ??
-              venta.metodoPago}{" "}
-            (editar)
-          </button>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -100,9 +109,7 @@ export default function VentasPage() {
     [productos]
   );
 
-  const totalHoy = ventasHoy
-    .filter((v) => v.estado !== "anulada")
-    .reduce((acc, v) => acc + (v.total || 0), 0);
+  const totalHoy = ventasHoy.reduce((acc, v) => acc + totalActivo(v), 0);
 
   return (
     <div>

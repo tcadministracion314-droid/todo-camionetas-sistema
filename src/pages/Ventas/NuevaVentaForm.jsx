@@ -1,38 +1,39 @@
 import { useState } from "react";
-import BuscadorProducto from "./BuscadorProducto";
+import BuscadorProducto from "../../components/BuscadorProducto";
 import { METODOS_PAGO } from "../../lib/constants";
 import { registrarVenta } from "../../lib/firestore/ventas";
 import { formatoCLP } from "../../lib/format";
 
-const FORM_VACIO = {
+const LINEA_VACIA = {
   producto: null,
   proveedorNombre: "",
   cantidad: "1",
   precioUnitario: "",
-  descuentoTipo: "porcentaje",
-  descuentoValor: "",
-  metodoPago: "",
 };
 
 export default function NuevaVentaForm({ productos, vendedor }) {
-  const [form, setForm] = useState(FORM_VACIO);
+  const [carrito, setCarrito] = useState([]);
+  const [linea, setLinea] = useState(LINEA_VACIA);
+  const [descuentoTipo, setDescuentoTipo] = useState("porcentaje");
+  const [descuentoValor, setDescuentoValor] = useState("");
+  const [metodoPago, setMetodoPago] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
-  const proveedoresConStock = (form.producto?.proveedores || []).filter(
+  const proveedoresConStock = (linea.producto?.proveedores || []).filter(
     (p) => (p.stock || 0) > 0
   );
   const proveedorElegido = proveedoresConStock.find(
-    (p) => p.nombre === form.proveedorNombre
+    (p) => p.nombre === linea.proveedorNombre
   );
 
   function seleccionarProducto(producto) {
     const disponibles = (producto.proveedores || []).filter((p) => (p.stock || 0) > 0);
     const unico = disponibles.length === 1 ? disponibles[0] : null;
-    setForm({
-      ...FORM_VACIO,
+    setLinea({
       producto,
       proveedorNombre: unico?.nombre || "",
+      cantidad: "1",
       precioUnitario: unico?.venta ?? "",
     });
     setError("");
@@ -40,7 +41,7 @@ export default function NuevaVentaForm({ productos, vendedor }) {
 
   function elegirProveedor(nombre) {
     const prov = proveedoresConStock.find((p) => p.nombre === nombre);
-    setForm((prev) => ({
+    setLinea((prev) => ({
       ...prev,
       proveedorNombre: nombre,
       precioUnitario: prov?.venta ?? "",
@@ -48,41 +49,62 @@ export default function NuevaVentaForm({ productos, vendedor }) {
     }));
   }
 
-  const cantidadNum = Number(form.cantidad) || 0;
-  const precioNum = Number(form.precioUnitario) || 0;
-  const subtotal = cantidadNum * precioNum;
+  const cantidadLineaNum = Number(linea.cantidad) || 0;
+  const precioLineaNum = Number(linea.precioUnitario) || 0;
+
+  function agregarAlCarrito() {
+    setError("");
+    if (!linea.producto) return setError("Busca y selecciona un producto.");
+    if (!linea.proveedorNombre) return setError("Elige de qué proveedor sale el stock.");
+    if (cantidadLineaNum <= 0) return setError("La cantidad debe ser mayor a 0.");
+    if (proveedorElegido && cantidadLineaNum > (proveedorElegido.stock || 0)) {
+      return setError(`No hay stock suficiente (quedan ${proveedorElegido.stock}).`);
+    }
+    if (precioLineaNum <= 0) return setError("Ingresa un precio de venta válido.");
+
+    setCarrito((prev) => [
+      ...prev,
+      {
+        producto: linea.producto,
+        proveedorNombre: linea.proveedorNombre,
+        cantidad: cantidadLineaNum,
+        precioUnitario: precioLineaNum,
+      },
+    ]);
+    setLinea(LINEA_VACIA);
+  }
+
+  function quitarDelCarrito(index) {
+    setCarrito((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  const subtotal = carrito.reduce((acc, it) => acc + it.cantidad * it.precioUnitario, 0);
   const descuentoMonto =
-    form.descuentoTipo === "porcentaje"
-      ? Math.round((subtotal * (Number(form.descuentoValor) || 0)) / 100)
-      : Number(form.descuentoValor) || 0;
+    descuentoTipo === "porcentaje"
+      ? Math.round((subtotal * (Number(descuentoValor) || 0)) / 100)
+      : Number(descuentoValor) || 0;
   const total = Math.max(0, subtotal - descuentoMonto);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
-    if (!form.producto) return setError("Busca y selecciona un producto.");
-    if (!form.proveedorNombre) return setError("Elige de qué proveedor sale el stock.");
-    if (cantidadNum <= 0) return setError("La cantidad debe ser mayor a 0.");
-    if (proveedorElegido && cantidadNum > (proveedorElegido.stock || 0)) {
-      return setError(`No hay stock suficiente (quedan ${proveedorElegido.stock}).`);
-    }
-    if (precioNum <= 0) return setError("Ingresa un precio de venta válido.");
-    if (!form.metodoPago) return setError("Elige el método de pago.");
+    if (carrito.length === 0) return setError("Agrega al menos un producto a la venta.");
+    if (!metodoPago) return setError("Elige el método de pago.");
 
     setGuardando(true);
     try {
       await registrarVenta({
-        producto: form.producto,
-        proveedorNombre: form.proveedorNombre,
-        cantidad: cantidadNum,
-        precioUnitario: precioNum,
-        descuentoTipo: form.descuentoTipo,
-        descuentoValor: Number(form.descuentoValor) || 0,
-        metodoPago: form.metodoPago,
+        items: carrito,
+        descuentoTipo,
+        descuentoValor: Number(descuentoValor) || 0,
+        metodoPago,
         vendedor,
       });
-      setForm(FORM_VACIO);
+      setCarrito([]);
+      setLinea(LINEA_VACIA);
+      setDescuentoValor("");
+      setMetodoPago("");
     } catch (err) {
       console.error(err);
       setError(err.message || "No se pudo registrar la venta. Intenta de nuevo.");
@@ -98,23 +120,23 @@ export default function NuevaVentaForm({ productos, vendedor }) {
     >
       <BuscadorProducto productos={productos} onSeleccionar={seleccionarProducto} />
 
-      {form.producto && (
+      {linea.producto && (
         <div className="border-2 border-marca-azul/30 bg-marca-azul/5 p-3">
-          <p className="font-bold text-marca-azul">{form.producto.nombre}</p>
+          <p className="font-bold text-marca-azul">{linea.producto.nombre}</p>
           <p className="text-sm text-marca-azul/70">
-            {form.producto.marcaRepuesto}
-            {form.producto.modelo ? ` · ${form.producto.modelo}` : ""}
+            {linea.producto.marcaRepuesto}
+            {linea.producto.modelo ? ` · ${linea.producto.modelo}` : ""}
           </p>
         </div>
       )}
 
-      {form.producto && proveedoresConStock.length > 1 && (
+      {linea.producto && proveedoresConStock.length > 1 && (
         <div>
           <label className="mb-1 block text-sm font-bold text-marca-azul">
             ¿De qué proveedor sale? (tiene stock en más de uno)
           </label>
           <select
-            value={form.proveedorNombre}
+            value={linea.proveedorNombre}
             onChange={(e) => elegirProveedor(e.target.value)}
             className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
           >
@@ -128,7 +150,7 @@ export default function NuevaVentaForm({ productos, vendedor }) {
         </div>
       )}
 
-      {form.producto && form.proveedorNombre && (
+      {linea.producto && linea.proveedorNombre && (
         <>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -139,10 +161,8 @@ export default function NuevaVentaForm({ productos, vendedor }) {
                 type="number"
                 min="1"
                 max={proveedorElegido?.stock ?? undefined}
-                value={form.cantidad}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, cantidad: e.target.value }))
-                }
+                value={linea.cantidad}
+                onChange={(e) => setLinea((prev) => ({ ...prev, cantidad: e.target.value }))}
                 className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
               />
             </div>
@@ -153,28 +173,69 @@ export default function NuevaVentaForm({ productos, vendedor }) {
               <input
                 type="number"
                 min="0"
-                value={form.precioUnitario}
+                value={linea.precioUnitario}
                 onChange={(e) =>
-                  setForm((prev) => ({ ...prev, precioUnitario: e.target.value }))
+                  setLinea((prev) => ({ ...prev, precioUnitario: e.target.value }))
                 }
                 className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
               />
             </div>
           </div>
 
+          <button
+            type="button"
+            onClick={agregarAlCarrito}
+            className="w-full border-2 border-marca-azul px-4 py-2 font-black uppercase text-marca-azul hover:bg-marca-azul/10"
+          >
+            + Agregar a la venta
+          </button>
+        </>
+      )}
+
+      {carrito.length > 0 && (
+        <div className="space-y-2 border-t-2 border-marca-azul/20 pt-3">
+          {carrito.map((it, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between border-2 border-marca-azul/20 p-2"
+            >
+              <div>
+                <p className="font-bold text-marca-azul">
+                  {it.producto.nombre}{" "}
+                  <span className="font-normal text-marca-azul/70">× {it.cantidad}</span>
+                </p>
+                <p className="text-sm text-marca-azul/70">{it.proveedorNombre}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <p className="font-bold text-marca-azul">
+                  {formatoCLP(it.cantidad * it.precioUnitario)}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => quitarDelCarrito(index)}
+                  className="text-sm font-bold text-marca-rojo hover:underline"
+                >
+                  Quitar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {carrito.length > 0 && (
+        <>
           <div>
             <label className="mb-1 block text-sm font-bold text-marca-azul">
-              Descuento
+              Descuento (sobre toda la venta)
             </label>
             <div className="flex gap-2">
               <div className="flex border-2 border-marca-azul">
                 <button
                   type="button"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, descuentoTipo: "porcentaje" }))
-                  }
+                  onClick={() => setDescuentoTipo("porcentaje")}
                   className={`px-4 py-2 font-black ${
-                    form.descuentoTipo === "porcentaje"
+                    descuentoTipo === "porcentaje"
                       ? "bg-marca-azul text-white"
                       : "text-marca-azul"
                   }`}
@@ -183,13 +244,9 @@ export default function NuevaVentaForm({ productos, vendedor }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, descuentoTipo: "monto" }))
-                  }
+                  onClick={() => setDescuentoTipo("monto")}
                   className={`px-4 py-2 font-black ${
-                    form.descuentoTipo === "monto"
-                      ? "bg-marca-azul text-white"
-                      : "text-marca-azul"
+                    descuentoTipo === "monto" ? "bg-marca-azul text-white" : "text-marca-azul"
                   }`}
                 >
                   $
@@ -198,10 +255,8 @@ export default function NuevaVentaForm({ productos, vendedor }) {
               <input
                 type="number"
                 min="0"
-                value={form.descuentoValor}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, descuentoValor: e.target.value }))
-                }
+                value={descuentoValor}
+                onChange={(e) => setDescuentoValor(e.target.value)}
                 placeholder="0"
                 className="flex-1 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
               />
@@ -217,11 +272,9 @@ export default function NuevaVentaForm({ productos, vendedor }) {
                 <button
                   key={m.value}
                   type="button"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, metodoPago: m.value }))
-                  }
+                  onClick={() => setMetodoPago(m.value)}
                   className={`px-4 py-2 text-sm font-black uppercase ${
-                    form.metodoPago === m.value
+                    metodoPago === m.value
                       ? "bg-marca-rojo text-white"
                       : "bg-marca-azul/10 text-marca-azul"
                   }`}
@@ -233,17 +286,13 @@ export default function NuevaVentaForm({ productos, vendedor }) {
           </div>
 
           <div className="border-t-2 border-marca-azul/20 pt-3 text-right">
-            <p className="text-sm text-marca-azul/70">
-              Subtotal: {formatoCLP(subtotal)}
-            </p>
+            <p className="text-sm text-marca-azul/70">Subtotal: {formatoCLP(subtotal)}</p>
             {descuentoMonto > 0 && (
               <p className="text-sm text-marca-rojo">
                 Descuento: -{formatoCLP(descuentoMonto)}
               </p>
             )}
-            <p className="text-xl font-black text-marca-azul">
-              Total: {formatoCLP(total)}
-            </p>
+            <p className="text-xl font-black text-marca-azul">Total: {formatoCLP(total)}</p>
           </div>
         </>
       )}
@@ -252,7 +301,7 @@ export default function NuevaVentaForm({ productos, vendedor }) {
 
       <button
         type="submit"
-        disabled={guardando || !form.producto}
+        disabled={guardando || carrito.length === 0}
         className="w-full bg-marca-rojo px-6 py-3 font-black uppercase text-white hover:opacity-90 disabled:opacity-50"
       >
         {guardando ? "Registrando..." : "Registrar venta"}

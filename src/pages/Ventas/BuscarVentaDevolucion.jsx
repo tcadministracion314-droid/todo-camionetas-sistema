@@ -20,8 +20,8 @@ export default function BuscarVentaDevolucion({ productos, vendedor }) {
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [buscado, setBuscado] = useState(false);
-  const [ventaDevolucion, setVentaDevolucion] = useState(null);
-  const [ventaCambio, setVentaCambio] = useState(null);
+  const [seleccionDevolucion, setSeleccionDevolucion] = useState(null);
+  const [seleccionCambio, setSeleccionCambio] = useState(null);
 
   async function buscar(e) {
     e.preventDefault();
@@ -57,31 +57,31 @@ export default function BuscarVentaDevolucion({ productos, vendedor }) {
         {buscado && resultados.length === 0 && (
           <p className="text-marca-azul/70">No se encontraron ventas.</p>
         )}
-        {resultados.map((v) => (
+        {resultados.map(({ venta, itemIndex, item }) => (
           <div
-            key={v.id}
+            key={`${venta.id}-${itemIndex}`}
             className="flex items-center justify-between border-2 border-marca-azul/30 p-3"
           >
             <div>
               <p className="font-bold text-marca-azul">
-                {v.productoNombre} × {v.cantidad}
+                {item.productoNombre} × {item.cantidad}
               </p>
               <p className="text-sm text-marca-azul/70">
-                {formatoFecha(v.fecha)} — {v.vendedorEmail}
+                {formatoFecha(venta.fecha)} — {venta.vendedorEmail}
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <p className="font-black text-marca-azul">{formatoCLP(v.total)}</p>
+              <p className="font-black text-marca-azul">{formatoCLP(item.subtotal)}</p>
               <button
                 type="button"
-                onClick={() => setVentaDevolucion(v)}
+                onClick={() => setSeleccionDevolucion({ venta, itemIndex })}
                 className="text-sm font-bold text-marca-rojo hover:underline"
               >
                 Devolver
               </button>
               <button
                 type="button"
-                onClick={() => setVentaCambio(v)}
+                onClick={() => setSeleccionCambio({ venta, itemIndex })}
                 className="text-sm font-bold text-marca-azul hover:underline"
               >
                 Cambiar
@@ -91,19 +91,21 @@ export default function BuscarVentaDevolucion({ productos, vendedor }) {
         ))}
       </div>
 
-      {ventaDevolucion && (
+      {seleccionDevolucion && (
         <DevolucionModal
-          venta={ventaDevolucion}
+          venta={seleccionDevolucion.venta}
+          itemIndex={seleccionDevolucion.itemIndex}
           vendedor={vendedor}
-          onClose={() => setVentaDevolucion(null)}
+          onClose={() => setSeleccionDevolucion(null)}
         />
       )}
-      {ventaCambio && (
+      {seleccionCambio && (
         <CambioModal
-          venta={ventaCambio}
+          venta={seleccionCambio.venta}
+          itemIndex={seleccionCambio.itemIndex}
           productos={productos}
           vendedor={vendedor}
-          onClose={() => setVentaCambio(null)}
+          onClose={() => setSeleccionCambio(null)}
         />
       )}
     </div>

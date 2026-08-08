@@ -1,11 +1,18 @@
 import { useState } from "react";
-import BuscadorProducto from "./BuscadorProducto";
+import BuscadorProducto from "../../components/BuscadorProducto";
 import { METODOS_PAGO } from "../../lib/constants";
 import { formatoCLP } from "../../lib/format";
 import { buscarOCrearCliente } from "../../lib/firestore/clientes";
 import { registrarCambio } from "../../lib/firestore/cambios";
 
-export default function CambioModal({ venta, productos, vendedor, onClose }) {
+export default function CambioModal({ venta, itemIndex, productos, vendedor, onClose }) {
+  const item = venta.items[itemIndex];
+  const proporcion = venta.subtotal > 0 ? item.subtotal / venta.subtotal : 0;
+  const precioDevueltoEstimado = Math.max(
+    0,
+    item.subtotal - Math.round((venta.descuentoMonto || 0) * proporcion)
+  );
+
   const [clienteNombre, setClienteNombre] = useState("");
   const [clienteTelefono, setClienteTelefono] = useState("");
   const [productoNuevo, setProductoNuevo] = useState(null);
@@ -44,7 +51,7 @@ export default function CambioModal({ venta, productos, vendedor, onClose }) {
   const cantidadNum = Number(cantidadNueva) || 0;
   const precioNum = Number(precioUnitarioNuevo) || 0;
   const precioNuevoTotal = cantidadNum * precioNum;
-  const diferencia = precioNuevoTotal - venta.total;
+  const diferencia = precioNuevoTotal - precioDevueltoEstimado;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -79,7 +86,8 @@ export default function CambioModal({ venta, productos, vendedor, onClose }) {
       });
 
       await registrarCambio({
-        ventaOriginal: venta,
+        venta,
+        itemIndex,
         productoNuevo,
         proveedorNuevoNombre,
         cantidadNueva: cantidadNum,
@@ -111,7 +119,7 @@ export default function CambioModal({ venta, productos, vendedor, onClose }) {
         <div className="mb-4 border-2 border-marca-azul/30 bg-marca-azul/5 p-3">
           <p className="font-bold text-marca-azul">Se devuelve:</p>
           <p>
-            {venta.productoNombre} × {venta.cantidad} — {formatoCLP(venta.total)}
+            {item.productoNombre} × {item.cantidad} — {formatoCLP(precioDevueltoEstimado)}
           </p>
         </div>
 
@@ -208,7 +216,7 @@ export default function CambioModal({ venta, productos, vendedor, onClose }) {
               <div className="border-t-2 border-marca-azul/20 pt-3">
                 <p className="text-right text-sm text-marca-azul/70">
                   Producto nuevo: {formatoCLP(precioNuevoTotal)} — Producto devuelto:{" "}
-                  {formatoCLP(venta.total)}
+                  {formatoCLP(precioDevueltoEstimado)}
                 </p>
                 <p className="text-right text-xl font-black text-marca-azul">
                   {diferencia === 0
