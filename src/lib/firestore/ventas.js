@@ -20,6 +20,12 @@ export function subscribeVentasVendedor(vendedorId, callback) {
   });
 }
 
+export function subscribeTodasVentas(callback) {
+  return onSnapshot(collection(db, COLECCION), (snapshot) => {
+    callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+}
+
 export async function buscarVentasParaDevolucion(texto) {
   const snap = await getDocs(collection(db, COLECCION));
   const ventas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));

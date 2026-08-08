@@ -5,19 +5,13 @@ import { useVentasHoy } from "../../hooks/useVentasHoy";
 import { actualizarMetodoPagoVenta } from "../../lib/firestore/ventas";
 import { METODOS_PAGO } from "../../lib/constants";
 import { formatoCLP } from "../../lib/format";
+import { totalActivoVenta } from "../../lib/calculosVenta";
 import NuevaVentaForm from "./NuevaVentaForm";
 import VentaEncargoModal from "./VentaEncargoModal";
 import BuscarVentaDevolucion from "./BuscarVentaDevolucion";
 
 function tieneStock(producto) {
   return (producto.proveedores || []).some((p) => (p.stock || 0) > 0);
-}
-
-function totalActivo(venta) {
-  const devuelto = (venta.items || [])
-    .filter((it) => it.estado === "anulado")
-    .reduce((acc, it) => acc + (it.montoDevuelto || 0), 0);
-  return Math.max(0, (venta.total || 0) - devuelto);
 }
 
 function VentaCard({ venta }) {
@@ -36,7 +30,7 @@ function VentaCard({ venta }) {
       })
     : "";
 
-  const total = totalActivo(venta);
+  const total = totalActivoVenta(venta);
 
   return (
     <div className="border-2 border-marca-azul/30 p-3">
@@ -109,7 +103,7 @@ export default function VentasPage() {
     [productos]
   );
 
-  const totalHoy = ventasHoy.reduce((acc, v) => acc + totalActivo(v), 0);
+  const totalHoy = ventasHoy.reduce((acc, v) => acc + totalActivoVenta(v), 0);
 
   return (
     <div>
