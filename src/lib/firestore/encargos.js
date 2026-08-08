@@ -1,6 +1,8 @@
 import {
   collection,
+  doc,
   addDoc,
+  updateDoc,
   query,
   orderBy,
   onSnapshot,
@@ -27,4 +29,18 @@ export async function crearEncargo(datos) {
       : null,
     createdAt: serverTimestamp(),
   });
+}
+
+export async function marcarLlegado(id) {
+  await updateDoc(doc(db, COLECCION, id), { estado: "llego" });
+}
+
+export async function marcarEntregado(id, { pagoSaldo, metodoPagoSaldo, precioTotal }) {
+  const datos = { estado: "entregado" };
+  if (pagoSaldo) {
+    datos.montoAbonado = precioTotal;
+    datos.estadoPago = "pagado";
+    datos.metodoPagoSaldo = metodoPagoSaldo;
+  }
+  await updateDoc(doc(db, COLECCION, id), datos);
 }
