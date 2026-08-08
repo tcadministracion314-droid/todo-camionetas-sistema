@@ -6,11 +6,20 @@ import {
   addDoc,
   updateDoc,
   limit,
+  orderBy,
+  onSnapshot,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
 const COLECCION = "clientes";
+
+export function subscribeClientes(callback) {
+  const q = query(collection(db, COLECCION), orderBy("nombre"));
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+  });
+}
 
 export async function buscarOCrearCliente({ nombre, telefono, correo }) {
   const telefonoLimpio = telefono?.trim() || "";
