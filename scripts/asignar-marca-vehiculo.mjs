@@ -7,11 +7,42 @@ const ESCRIBIR = process.argv.includes("--escribir");
 const rutaCredenciales = path.resolve("datos-privados", "firebase-service-account.json");
 
 const REGLAS = [
-  { palabras: ["hilux", "hilix", "hulux"], marca: "Toyota" },
-  { palabras: ["l200"], marca: "Mitsubishi" },
-  { palabras: ["dmax", "luv", "silverado", "s10"], marca: "Chevrolet" },
-  { palabras: ["navara", "np300", "d21", "terrano", "d22"], marca: "Nissan" },
-  { palabras: ["bt50", "bt5o", "b2500", "b2900", "b2000", "b2200", "b2600"], marca: "Mazda" },
+  {
+    palabras: ["hilux", "hilix", "hulux", "yaris", "corolla", "tercel", "rav4", "tundra", "toyota"],
+    marca: "Toyota",
+  },
+  { palabras: ["l200", "l300", "outlander"], marca: "Mitsubishi" },
+  {
+    palabras: [
+      "dmax", "luv", "silverado", "s10", "corsa", "tracker", "chevette", "montana",
+      "clarus", "spark", "groove", "sail", "aveo", "captiva", "chevrolet", "n300",
+    ],
+    marca: "Chevrolet",
+  },
+  {
+    palabras: [
+      "navara", "np300", "d21", "terrano", "d22", "j18", "720", "xtrail", "xtrai",
+      "qashqai", "sentra", "nv350", "v16", "j16", "j15", "nissan",
+    ],
+    marca: "Nissan",
+  },
+  {
+    palabras: [
+      "bt50", "bt5o", "b2500", "b2900", "b2000", "b2200", "b2600", "mazda",
+    ],
+    marca: "Mazda",
+  },
+  { palabras: ["ranger", "f150", "ford"], marca: "Ford" },
+  { palabras: ["porter", "h100", "h1", "pregio", "hyundai"], marca: "Hyundai" },
+  { palabras: ["nkr", "npr"], marca: "Isuzu" },
+  { palabras: ["maxus"], marca: "Maxus" },
+  { palabras: ["baleno", "swift"], marca: "Suzuki" },
+  { palabras: ["poer"], marca: "Great Wall" },
+  { palabras: ["byd"], marca: "BYD" },
+  { palabras: ["ssangyong"], marca: "SsangYong" },
+  { palabras: ["vwgol", "volkswagen"], marca: "Volkswagen" },
+  { palabras: ["oroch"], marca: "Renault" },
+  { palabras: ["kia"], marca: "Kia" },
 ];
 
 function normalizar(texto) {
