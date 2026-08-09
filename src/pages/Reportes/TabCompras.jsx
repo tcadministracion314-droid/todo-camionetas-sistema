@@ -4,6 +4,7 @@ import { useCompras } from "../../hooks/useCompras";
 import { useProductos } from "../../hooks/useProductos";
 import { formatoCLP } from "../../lib/format";
 import NuevaCompraForm from "./NuevaCompraForm";
+import FacturasProveedorSection from "./FacturasProveedorSection";
 
 function formatoFechaHora(fecha) {
   if (!fecha?.toDate) return "";
@@ -63,7 +64,8 @@ export default function TabCompras() {
   }, [comprasFiltradas]);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <div>
         <h2 className="mb-3 text-lg font-black uppercase text-marca-azul">
           Registrar compra
@@ -128,14 +130,34 @@ export default function TabCompras() {
 
             {porProveedor.length > 0 && (
               <div className="mb-4 border-2 border-marca-azul/30 p-3">
-                <p className="mb-2 text-sm font-black uppercase text-marca-azul">
-                  Por proveedor
-                </p>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-black uppercase text-marca-azul">
+                    Por proveedor
+                  </p>
+                  {proveedor !== "todos" && (
+                    <button
+                      type="button"
+                      onClick={() => setProveedor("todos")}
+                      className="text-xs font-bold text-marca-rojo hover:underline"
+                    >
+                      Ver todos
+                    </button>
+                  )}
+                </div>
                 {porProveedor.map(([nombre, total]) => (
-                  <div key={nombre} className="flex justify-between text-sm">
-                    <span className="text-marca-azul/70">{nombre}</span>
+                  <button
+                    key={nombre}
+                    type="button"
+                    onClick={() => setProveedor(nombre)}
+                    className={`flex w-full justify-between px-2 py-1 text-sm ${
+                      proveedor === nombre
+                        ? "bg-marca-rojo/10 font-bold text-marca-rojo"
+                        : "text-marca-azul/70 hover:bg-marca-azul/5"
+                    }`}
+                  >
+                    <span>{nombre}</span>
                     <span className="font-bold text-marca-azul">{formatoCLP(total)}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -164,6 +186,9 @@ export default function TabCompras() {
           </>
         )}
       </div>
+      </div>
+
+      <FacturasProveedorSection />
     </div>
   );
 }
