@@ -7,17 +7,25 @@ const ESCRIBIR = process.argv.includes("--escribir");
 const rutaCredenciales = path.resolve("datos-privados", "firebase-service-account.json");
 
 const REGLAS = [
-  { palabras: ["hilux"], marca: "Toyota" },
+  { palabras: ["hilux", "hilix", "hulux"], marca: "Toyota" },
   { palabras: ["l200"], marca: "Mitsubishi" },
-  { palabras: ["dmax", "d-max", "luv", "silverado"], marca: "Chevrolet" },
+  { palabras: ["dmax", "luv", "silverado", "s10"], marca: "Chevrolet" },
   { palabras: ["navara", "np300", "d21", "terrano", "d22"], marca: "Nissan" },
-  { palabras: ["bt50", "bt-50"], marca: "Mazda" },
+  { palabras: ["bt50", "bt5o", "b2500", "b2900", "b2000", "b2200", "b2600"], marca: "Mazda" },
 ];
 
+function normalizar(texto) {
+  return (texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // quita tildes
+    .replace(/[^a-z0-9]/g, ""); // quita espacios, guiones, puntos, etc.
+}
+
 function marcaParaModelo(modelo) {
-  const m = (modelo || "").toLowerCase();
+  const m = normalizar(modelo);
   for (const regla of REGLAS) {
-    if (regla.palabras.some((p) => m.includes(p))) return regla.marca;
+    if (regla.palabras.some((p) => m.includes(normalizar(p)))) return regla.marca;
   }
   return null;
 }
@@ -41,8 +49,8 @@ const porMarca = {};
 aActualizar.forEach((p) => (porMarca[p.marca] = (porMarca[p.marca] || 0) + 1));
 console.log(porMarca);
 
-console.log("\nEjemplos (primeros 15):");
-aActualizar.slice(0, 15).forEach((p) => console.log(`  - "${p.nombre}" (modelo "${p.modelo}") → ${p.marca}`));
+console.log("\nEjemplos (primeros 20):");
+aActualizar.slice(0, 20).forEach((p) => console.log(`  - "${p.nombre}" (modelo "${p.modelo}") → ${p.marca}`));
 
 if (!ESCRIBIR) {
   console.log("\n(Modo simulación — no se escribió nada. Ejecuta con --escribir para aplicar.)");
