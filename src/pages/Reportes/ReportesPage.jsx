@@ -4,6 +4,7 @@ import { useProductos } from "../../hooks/useProductos";
 import TabCaja from "./TabCaja";
 import TabVentas from "./TabVentas";
 import TabInventario from "./TabInventario";
+import TabCompras from "./TabCompras";
 
 function hoyISO() {
   return new Date().toISOString().slice(0, 10);
@@ -26,6 +27,7 @@ function primerDiaMesISO() {
 const TABS = [
   { value: "caja", label: "Caja" },
   { value: "ventas", label: "Ventas" },
+  { value: "compras", label: "Compras" },
   { value: "inventario", label: "Inventario" },
 ];
 
@@ -96,7 +98,7 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      {tab !== "inventario" && (
+      {tab !== "inventario" && tab !== "compras" && (
         <div className="mb-4 flex flex-wrap items-end gap-3 border-2 border-marca-azul/30 p-3">
           <div>
             <label className="mb-1 block text-xs font-bold text-marca-azul">Desde</label>
@@ -177,6 +179,8 @@ export default function ReportesPage() {
         ) : (
           <TabVentas ventas={ventasFiltradas} />
         ))}
+
+      {tab === "compras" && <TabCompras />}
 
       {tab === "inventario" &&
         (cargandoProductos ? (
