@@ -5,6 +5,7 @@ import TabCaja from "./TabCaja";
 import TabVentas from "./TabVentas";
 import TabInventario from "./TabInventario";
 import TabCompras from "./TabCompras";
+import TabGastos from "./TabGastos";
 
 function hoyISO() {
   return new Date().toISOString().slice(0, 10);
@@ -28,6 +29,7 @@ const TABS = [
   { value: "caja", label: "Caja" },
   { value: "ventas", label: "Ventas" },
   { value: "compras", label: "Compras" },
+  { value: "gastos", label: "Gastos" },
   { value: "inventario", label: "Inventario" },
 ];
 
@@ -98,7 +100,7 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      {tab !== "inventario" && tab !== "compras" && (
+      {tab !== "inventario" && tab !== "compras" && tab !== "gastos" && (
         <div className="mb-4 flex flex-wrap items-end gap-3 border-2 border-marca-azul/30 p-3">
           <div>
             <label className="mb-1 block text-xs font-bold text-marca-azul">Desde</label>
@@ -181,6 +183,8 @@ export default function ReportesPage() {
         ))}
 
       {tab === "compras" && <TabCompras />}
+
+      {tab === "gastos" && <TabGastos />}
 
       {tab === "inventario" &&
         (cargandoProductos ? (
