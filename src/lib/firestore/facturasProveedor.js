@@ -1,11 +1,11 @@
 import {
   collection,
+  doc,
+  updateDoc,
   query,
   orderBy,
   onSnapshot,
-  addDoc,
   serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
@@ -18,19 +18,6 @@ export function subscribeFacturasProveedor(callback) {
   });
 }
 
-export async function crearFacturaProveedor({
-  fecha,
-  fechaPago,
-  proveedor,
-  numeroFactura,
-  valor,
-}) {
-  return addDoc(collection(db, COLECCION), {
-    fecha: Timestamp.fromDate(new Date(fecha)),
-    fechaPago: fechaPago ? Timestamp.fromDate(new Date(fechaPago)) : null,
-    proveedor: proveedor.trim(),
-    numeroFactura: numeroFactura?.trim() || null,
-    valor: Number(valor),
-    createdAt: serverTimestamp(),
-  });
+export async function marcarFacturaPagada(id) {
+  await updateDoc(doc(db, COLECCION, id), { fechaPago: serverTimestamp() });
 }

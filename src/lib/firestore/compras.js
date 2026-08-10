@@ -3,15 +3,20 @@ import {
   doc,
   addDoc,
   query,
+  where,
+  limit,
+  getDocs,
   orderBy,
   onSnapshot,
   runTransaction,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { crearProducto } from "./productos";
 
 const COLECCION = "compras";
+const COLECCION_FACTURAS = "facturasProveedor";
 
 export function subscribeCompras(callback) {
   const q = query(collection(db, COLECCION), orderBy("fecha", "desc"));
@@ -20,12 +25,34 @@ export function subscribeCompras(callback) {
   });
 }
 
+async function resolverFactura({ proveedorNombre, numeroFactura, fechaFactura }) {
+  if (!numeroFactura) return { ref: null, esNueva: false };
+
+  const q = query(
+    collection(db, COLECCION_FACTURAS),
+    where("proveedor", "==", proveedorNombre),
+    where("numeroFactura", "==", numeroFactura),
+    limit(1)
+  );
+  const existentes = await getDocs(q);
+  if (!existentes.empty) {
+    return { ref: existentes.docs[0].ref, esNueva: false };
+  }
+  return {
+    ref: doc(collection(db, COLECCION_FACTURAS)),
+    esNueva: true,
+    fecha: fechaFactura ? Timestamp.fromDate(new Date(fechaFactura)) : Timestamp.now(),
+  };
+}
+
 export async function registrarCompraProductoExistente({
   producto,
   proveedorNombre,
   cantidad,
   costoUnitario,
   comprador,
+  numeroFactura,
+  fechaFactura,
 }) {
   const cantidadNum = Number(cantidad);
   const costoNum = Number(costoUnitario);
@@ -33,10 +60,16 @@ export async function registrarCompraProductoExistente({
 
   const productoRef = doc(db, "productos", producto.id);
   const compraRef = doc(collection(db, COLECCION));
+  const factura = await resolverFactura({
+    proveedorNombre,
+    numeroFactura: numeroFactura?.trim(),
+    fechaFactura,
+  });
 
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(productoRef);
     if (!snap.exists()) throw new Error("El producto ya no existe en Inventario.");
+    const facturaSnap = factura.ref && !factura.esNueva ? await tx.get(factura.ref) : null;
 
     const datos = snap.data();
     const proveedores = datos.proveedores || [];
@@ -72,6 +105,21 @@ export async function registrarCompraProductoExistente({
       updatedAt: serverTimestamp(),
     });
 
+    if (factura.ref) {
+      if (factura.esNueva) {
+        tx.set(factura.ref, {
+          fecha: factura.fecha,
+          fechaPago: null,
+          proveedor: proveedorNombre,
+          numeroFactura: numeroFactura.trim(),
+          valor: total,
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        tx.update(factura.ref, { valor: (facturaSnap.data().valor || 0) + total });
+      }
+    }
+
     tx.set(compraRef, {
       productoId: producto.id,
       productoNombre: producto.nombre,
@@ -80,6 +128,7 @@ export async function registrarCompraProductoExistente({
       cantidad: cantidadNum,
       costoUnitario: costoNum,
       total,
+      facturaId: factura.ref?.id || null,
       compradorId: comprador.uid,
       compradorEmail: comprador.email,
       fecha: serverTimestamp(),
@@ -97,6 +146,8 @@ export async function registrarCompraProductoNuevo({
   cantidad,
   costoUnitario,
   comprador,
+  numeroFactura,
+  fechaFactura,
 }) {
   const cantidadNum = Number(cantidad);
   const costoNum = Number(costoUnitario);
@@ -129,6 +180,8 @@ export async function registrarCompraProductoNuevo({
     cantidad: cantidadNum,
     costoUnitario: costoNum,
     comprador,
+    numeroFactura: numeroFactura?.trim(),
+    fechaFactura,
   });
 
   return productoRef;
@@ -142,7 +195,30 @@ async function registrarCompraDirecta({
   cantidad,
   costoUnitario,
   comprador,
+  numeroFactura,
+  fechaFactura,
 }) {
+  const total = cantidad * costoUnitario;
+  const factura = await resolverFactura({ proveedorNombre, numeroFactura, fechaFactura });
+
+  if (factura.ref) {
+    await runTransaction(db, async (tx) => {
+      const facturaSnap = !factura.esNueva ? await tx.get(factura.ref) : null;
+      if (factura.esNueva) {
+        tx.set(factura.ref, {
+          fecha: factura.fecha,
+          fechaPago: null,
+          proveedor: proveedorNombre,
+          numeroFactura,
+          valor: total,
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        tx.update(factura.ref, { valor: (facturaSnap.data().valor || 0) + total });
+      }
+    });
+  }
+
   await addDoc(collection(db, COLECCION), {
     productoId,
     productoNombre,
@@ -150,7 +226,8 @@ async function registrarCompraDirecta({
     proveedorNombre,
     cantidad,
     costoUnitario,
-    total: cantidad * costoUnitario,
+    total,
+    facturaId: factura.ref?.id || null,
     compradorId: comprador.uid,
     compradorEmail: comprador.email,
     fecha: serverTimestamp(),

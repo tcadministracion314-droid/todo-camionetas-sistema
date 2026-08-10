@@ -1,5 +1,7 @@
 import {
   collection,
+  doc,
+  updateDoc,
   query,
   orderBy,
   onSnapshot,
@@ -30,4 +32,10 @@ export async function crearValorCatalogoSiNoExiste(coleccion, nombre) {
   if (!existentes.empty) return;
 
   await addDoc(collection(db, coleccion), { nombre: nombreLimpio });
+}
+
+export async function actualizarDiasCreditoProveedor(id, diasCredito) {
+  await updateDoc(doc(db, "proveedores", id), {
+    diasCredito: diasCredito === "" ? null : Number(diasCredito),
+  });
 }

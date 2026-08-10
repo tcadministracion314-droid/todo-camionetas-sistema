@@ -25,6 +25,8 @@ export default function NuevaCompraForm({ productos, comprador }) {
   const [nuevo, setNuevo] = useState(NUEVO_VACIO);
   const [cantidad, setCantidad] = useState("1");
   const [costoUnitario, setCostoUnitario] = useState("");
+  const [numeroFactura, setNumeroFactura] = useState("");
+  const [fechaFactura, setFechaFactura] = useState(new Date().toISOString().slice(0, 10));
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
@@ -48,6 +50,7 @@ export default function NuevaCompraForm({ productos, comprador }) {
     setNuevo(NUEVO_VACIO);
     setCantidad("1");
     setCostoUnitario("");
+    setNumeroFactura("");
     setError("");
   }
 
@@ -81,6 +84,8 @@ export default function NuevaCompraForm({ productos, comprador }) {
           cantidad: cantidadNum,
           costoUnitario: costoNum,
           comprador,
+          numeroFactura: numeroFactura.trim(),
+          fechaFactura,
         });
       } else {
         await registrarCompraProductoNuevo({
@@ -93,15 +98,22 @@ export default function NuevaCompraForm({ productos, comprador }) {
           cantidad: cantidadNum,
           costoUnitario: costoNum,
           comprador,
+          numeroFactura: numeroFactura.trim(),
+          fechaFactura,
         });
       }
 
-      setExito("Compra registrada y stock actualizado.");
+      setExito(
+        numeroFactura.trim()
+          ? "Compra registrada, stock actualizado y sumada a la factura."
+          : "Compra registrada y stock actualizado."
+      );
       setProducto(null);
       setProveedorNombre("");
       setNuevo(NUEVO_VACIO);
       setCantidad("1");
       setCostoUnitario("");
+      setNumeroFactura("");
     } catch (err) {
       console.error(err);
       setError(err.message || "No se pudo registrar la compra. Intenta de nuevo.");
@@ -247,6 +259,38 @@ export default function NuevaCompraForm({ productos, comprador }) {
           <p className="text-lg font-black text-marca-azul">{formatoCLP(total)}</p>
         </div>
       </div>
+
+      <div className="grid grid-cols-2 gap-2 border-t-2 border-marca-azul/20 pt-3">
+        <div>
+          <label className="mb-1 block text-sm font-bold text-marca-azul">
+            N° Factura (opcional)
+          </label>
+          <input
+            value={numeroFactura}
+            onChange={(e) => setNumeroFactura(e.target.value)}
+            placeholder="Si la dejas vacía, no queda ligada a ninguna factura"
+            className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-bold text-marca-azul">
+            Fecha de la factura
+          </label>
+          <input
+            type="date"
+            value={fechaFactura}
+            onChange={(e) => setFechaFactura(e.target.value)}
+            disabled={!numeroFactura.trim()}
+            className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo disabled:opacity-40"
+          />
+        </div>
+      </div>
+      {numeroFactura.trim() && (
+        <p className="text-sm text-marca-azul/70">
+          Si ya existe una factura N° {numeroFactura.trim()} de este proveedor, se le suma este
+          producto. Si no existe, se crea una nueva.
+        </p>
+      )}
 
       {error && <p className="font-bold text-marca-rojo">{error}</p>}
       {exito && <p className="font-bold text-green-700">{exito}</p>}
