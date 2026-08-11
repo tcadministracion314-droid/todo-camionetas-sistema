@@ -2,6 +2,7 @@ import { useState } from "react";
 import BuscadorProducto from "../../components/BuscadorProducto";
 import { METODOS_PAGO } from "../../lib/constants";
 import { registrarVenta } from "../../lib/firestore/ventas";
+import { buscarClientePorTelefono } from "../../lib/firestore/clientes";
 import { formatoCLP } from "../../lib/format";
 
 const LINEA_VACIA = {
@@ -19,6 +20,12 @@ export default function NuevaVentaForm({ productos, vendedor }) {
   const [metodoPago, setMetodoPago] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+
+  const [telefonoCliente, setTelefonoCliente] = useState("");
+  const [clienteEncontrado, setClienteEncontrado] = useState(null);
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
+  const [saldoAplicado, setSaldoAplicado] = useState("");
+  const [errorCliente, setErrorCliente] = useState("");
 
   const proveedoresConStock = (linea.producto?.proveedores || []).filter(
     (p) => (p.stock || 0) > 0
@@ -83,7 +90,42 @@ export default function NuevaVentaForm({ productos, vendedor }) {
     descuentoTipo === "porcentaje"
       ? Math.round((subtotal * (Number(descuentoValor) || 0)) / 100)
       : Number(descuentoValor) || 0;
-  const total = Math.max(0, subtotal - descuentoMonto);
+  const totalAntesDeSaldo = Math.max(0, subtotal - descuentoMonto);
+  const saldoAplicadoNum = Math.min(
+    Number(saldoAplicado) || 0,
+    clienteEncontrado?.saldoAFavor || 0,
+    totalAntesDeSaldo
+  );
+  const total = Math.max(0, totalAntesDeSaldo - saldoAplicadoNum);
+
+  async function handleBuscarCliente(e) {
+    e.preventDefault();
+    setErrorCliente("");
+    setClienteEncontrado(null);
+    setSaldoAplicado("");
+    if (!telefonoCliente.trim()) return;
+
+    setBuscandoCliente(true);
+    try {
+      const cliente = await buscarClientePorTelefono(telefonoCliente);
+      if (!cliente) {
+        setErrorCliente("No se encontró un cliente con ese teléfono.");
+      } else if (!cliente.saldoAFavor) {
+        setErrorCliente(`${cliente.nombre || "Ese cliente"} no tiene saldo a favor.`);
+      } else {
+        setClienteEncontrado(cliente);
+      }
+    } finally {
+      setBuscandoCliente(false);
+    }
+  }
+
+  function quitarCliente() {
+    setClienteEncontrado(null);
+    setTelefonoCliente("");
+    setSaldoAplicado("");
+    setErrorCliente("");
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -100,11 +142,15 @@ export default function NuevaVentaForm({ productos, vendedor }) {
         descuentoValor: Number(descuentoValor) || 0,
         metodoPago,
         vendedor,
+        clienteId: clienteEncontrado?.id,
+        clienteNombre: clienteEncontrado?.nombre,
+        saldoAFavorAplicado: saldoAplicadoNum,
       });
       setCarrito([]);
       setLinea(LINEA_VACIA);
       setDescuentoValor("");
       setMetodoPago("");
+      quitarCliente();
     } catch (err) {
       console.error(err);
       setError(err.message || "No se pudo registrar la venta. Intenta de nuevo.");
@@ -285,11 +331,69 @@ export default function NuevaVentaForm({ productos, vendedor }) {
             </div>
           </div>
 
+          <div>
+            <label className="mb-1 block text-sm font-bold text-marca-azul">
+              Saldo a favor de un cliente (opcional)
+            </label>
+            {clienteEncontrado ? (
+              <div className="border-2 border-marca-azul/30 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="font-bold text-marca-azul">
+                    {clienteEncontrado.nombre} — saldo disponible:{" "}
+                    {formatoCLP(clienteEncontrado.saldoAFavor)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={quitarCliente}
+                    className="text-sm font-bold text-marca-rojo hover:underline"
+                  >
+                    Quitar
+                  </button>
+                </div>
+                <label className="mb-1 block text-sm font-bold text-marca-azul">
+                  Monto a aplicar
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max={Math.min(clienteEncontrado.saldoAFavor, totalAntesDeSaldo)}
+                  value={saldoAplicado}
+                  onChange={(e) => setSaldoAplicado(e.target.value)}
+                  placeholder="0"
+                  className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                />
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  value={telefonoCliente}
+                  onChange={(e) => setTelefonoCliente(e.target.value)}
+                  placeholder="Teléfono del cliente"
+                  className="flex-1 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                />
+                <button
+                  type="button"
+                  onClick={handleBuscarCliente}
+                  disabled={buscandoCliente}
+                  className="border-2 border-marca-azul px-4 py-2 text-sm font-black uppercase text-marca-azul hover:bg-marca-azul/10 disabled:opacity-50"
+                >
+                  {buscandoCliente ? "Buscando..." : "Buscar"}
+                </button>
+              </div>
+            )}
+            {errorCliente && <p className="mt-1 text-sm text-marca-rojo">{errorCliente}</p>}
+          </div>
+
           <div className="border-t-2 border-marca-azul/20 pt-3 text-right">
             <p className="text-sm text-marca-azul/70">Subtotal: {formatoCLP(subtotal)}</p>
             {descuentoMonto > 0 && (
               <p className="text-sm text-marca-rojo">
                 Descuento: -{formatoCLP(descuentoMonto)}
+              </p>
+            )}
+            {saldoAplicadoNum > 0 && (
+              <p className="text-sm text-marca-rojo">
+                Saldo a favor: -{formatoCLP(saldoAplicadoNum)}
               </p>
             )}
             <p className="text-xl font-black text-marca-azul">Total: {formatoCLP(total)}</p>

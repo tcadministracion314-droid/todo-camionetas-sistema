@@ -21,6 +21,16 @@ export function subscribeClientes(callback) {
   });
 }
 
+export async function buscarClientePorTelefono(telefono) {
+  const telefonoLimpio = telefono?.trim() || "";
+  if (!telefonoLimpio) return null;
+
+  const q = query(collection(db, COLECCION), where("telefono", "==", telefonoLimpio), limit(1));
+  const existentes = await getDocs(q);
+  if (existentes.empty) return null;
+  return { id: existentes.docs[0].id, ...existentes.docs[0].data() };
+}
+
 export async function buscarOCrearCliente({ nombre, telefono, correo }) {
   const telefonoLimpio = telefono?.trim() || "";
   const nombreLimpio = nombre?.trim() || "";

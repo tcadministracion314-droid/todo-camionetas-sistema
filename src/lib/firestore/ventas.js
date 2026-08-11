@@ -54,6 +54,9 @@ export async function registrarVenta({
   descuentoValor,
   metodoPago,
   vendedor,
+  clienteId,
+  clienteNombre,
+  saldoAFavorAplicado,
 }) {
   const itemsCalculados = items.map((it) => {
     const cantidadNum = Number(it.cantidad);
@@ -75,17 +78,20 @@ export async function registrarVenta({
     descuentoTipo === "porcentaje"
       ? Math.round((subtotal * (Number(descuentoValor) || 0)) / 100)
       : Number(descuentoValor) || 0;
-  const total = Math.max(0, subtotal - descuentoMonto);
+  const saldoAplicadoNum = Number(saldoAFavorAplicado) || 0;
+  const total = Math.max(0, subtotal - descuentoMonto - saldoAplicadoNum);
 
   const ventaRef = doc(collection(db, COLECCION));
   const productoIds = [...new Set(items.map((it) => it.producto.id))];
   const refsPorId = new Map(productoIds.map((id) => [id, doc(db, "productos", id)]));
+  const clienteRef = clienteId ? doc(db, "clientes", clienteId) : null;
 
   await runTransaction(db, async (tx) => {
     const snapsPorId = new Map();
     for (const id of productoIds) {
       snapsPorId.set(id, await tx.get(refsPorId.get(id)));
     }
+    const clienteSnap = clienteRef ? await tx.get(clienteRef) : null;
 
     const proveedoresPorId = new Map();
     productoIds.forEach((id) => {
@@ -112,6 +118,31 @@ export async function registrarVenta({
       proveedores[idx] = { ...proveedores[idx], stock: stockActual - cantidadNum };
     });
 
+    if (saldoAplicadoNum > 0) {
+      if (!clienteSnap?.exists()) {
+        throw new Error("El cliente ya no existe.");
+      }
+      const saldoActual = clienteSnap.data().saldoAFavor || 0;
+      if (saldoActual < saldoAplicadoNum) {
+        throw new Error(
+          `El cliente ya no tiene suficiente saldo a favor (quedan ${saldoActual}).`
+        );
+      }
+      const movimientos = clienteSnap.data().movimientosSaldo || [];
+      tx.update(clienteRef, {
+        saldoAFavor: saldoActual - saldoAplicadoNum,
+        movimientosSaldo: [
+          ...movimientos,
+          {
+            monto: -saldoAplicadoNum,
+            motivo: "Usado como descuento en venta",
+            referenciaId: ventaRef.id,
+            fecha: new Date().toISOString(),
+          },
+        ],
+      });
+    }
+
     productoIds.forEach((id) => {
       tx.update(refsPorId.get(id), {
         proveedores: proveedoresPorId.get(id),
@@ -127,6 +158,9 @@ export async function registrarVenta({
       descuentoTipo,
       descuentoValor: Number(descuentoValor) || 0,
       descuentoMonto,
+      clienteId: clienteId || null,
+      clienteNombre: clienteNombre || null,
+      saldoAFavorAplicado: saldoAplicadoNum,
       total,
       metodoPago,
       tipo: "normal",
