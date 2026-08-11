@@ -38,9 +38,24 @@ function rangoPrecio(proveedores, campo) {
   return min === max ? formatoCLP(min) : `${formatoCLP(min)} – ${formatoCLP(max)}`;
 }
 
+const SIN_MARCA = "__sin_marca__";
+
+function normalizarPalabra(texto) {
+  return (texto || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[-–]/g, "");
+}
+
+function modeloGenerico(modelo) {
+  if (!modelo) return null;
+  const limpio = modelo.replace(/[-–]/g, "").trim();
+  return limpio.split(/\s+/)[0] || null;
+}
+
 export default function InventarioPage() {
   const { productos, loading } = useProductos();
-  const [tab, setTab] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
   const [anioFiltro, setAnioFiltro] = useState("");
   const [pagina, setPagina] = useState(1);
@@ -48,6 +63,70 @@ export default function InventarioPage() {
   const [productoEditando, setProductoEditando] = useState(null);
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
   const [expandidos, setExpandidos] = useState(new Set());
+  const [categoriaFiltro, setCategoriaFiltro] = useState(null);
+  const [marcaVehiculoFiltro, setMarcaVehiculoFiltro] = useState(null);
+  const [modeloFiltro, setModeloFiltro] = useState(null);
+
+  function elegirCategoria(valor) {
+    setCategoriaFiltro(valor);
+    setMarcaVehiculoFiltro(null);
+    setModeloFiltro(null);
+    setBusqueda("");
+    setAnioFiltro("");
+    setPagina(1);
+  }
+
+  function elegirMarcaVehiculo(valor) {
+    setMarcaVehiculoFiltro(valor);
+    setModeloFiltro(null);
+    setPagina(1);
+  }
+
+  function elegirModelo(valor) {
+    setModeloFiltro(valor);
+    setPagina(1);
+  }
+
+  const productosValidos = useMemo(
+    () => productos.filter((p) => p.tipoInventario !== "pieza_unica_encargada"),
+    [productos]
+  );
+
+  const marcasVehiculoDisponibles = useMemo(() => {
+    const set = new Set();
+    let hayProductosSinMarca = false;
+    productosValidos.forEach((p) => {
+      if (p.categoria !== "repuesto") return;
+      if (p.marcaVehiculo) set.add(p.marcaVehiculo);
+      else hayProductosSinMarca = true;
+    });
+    const marcas = [...set].sort();
+    if (hayProductosSinMarca) marcas.push(SIN_MARCA);
+    return marcas;
+  }, [productosValidos]);
+
+  const modelosGenericosDisponibles = useMemo(() => {
+    if (!marcaVehiculoFiltro) return [];
+    const conteoPorClave = new Map();
+    productosValidos.forEach((p) => {
+      if (p.categoria !== "repuesto") return;
+      const marcaProducto = p.marcaVehiculo || SIN_MARCA;
+      if (marcaProducto !== marcaVehiculoFiltro) return;
+      const generico = modeloGenerico(p.modelo);
+      if (!generico) return;
+      const clave = normalizarPalabra(generico);
+      if (!conteoPorClave.has(clave)) conteoPorClave.set(clave, new Map());
+      const displays = conteoPorClave.get(clave);
+      displays.set(generico, (displays.get(generico) || 0) + 1);
+    });
+
+    const resultado = [];
+    conteoPorClave.forEach((displays, clave) => {
+      const mejor = [...displays.entries()].sort((a, b) => b[1] - a[1])[0][0];
+      resultado.push({ clave, label: mejor });
+    });
+    return resultado.sort((a, b) => a.label.localeCompare(b.label));
+  }, [productosValidos, marcaVehiculoFiltro]);
 
   function alternarExpandido(id) {
     setExpandidos((prev) => {
@@ -59,12 +138,19 @@ export default function InventarioPage() {
   }
 
   const productosFiltrados = useMemo(() => {
+    if (!categoriaFiltro) return [];
+    if (categoriaFiltro === "repuesto" && (!marcaVehiculoFiltro || !modeloFiltro)) return [];
     const texto = busqueda.trim().toLowerCase();
     const anio = anioFiltro ? Number(anioFiltro) : null;
 
-    return productos.filter((p) => {
-      if (p.tipoInventario === "pieza_unica_encargada") return false;
-      if (tab !== "todos" && p.tipoInventario !== tab) return false;
+    return productosValidos.filter((p) => {
+      if (p.categoria !== categoriaFiltro) return false;
+
+      if (categoriaFiltro === "repuesto") {
+        const marcaProducto = p.marcaVehiculo || SIN_MARCA;
+        if (marcaProducto !== marcaVehiculoFiltro) return false;
+        if (normalizarPalabra(modeloGenerico(p.modelo)) !== modeloFiltro) return false;
+      }
 
       if (texto) {
         const coincide =
@@ -87,7 +173,14 @@ export default function InventarioPage() {
 
       return true;
     });
-  }, [productos, tab, busqueda, anioFiltro]);
+  }, [
+    productosValidos,
+    categoriaFiltro,
+    busqueda,
+    anioFiltro,
+    marcaVehiculoFiltro,
+    modeloFiltro,
+  ]);
 
   const totalPaginas = Math.max(
     1,
@@ -142,210 +235,281 @@ export default function InventarioPage() {
         </div>
       </div>
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => cambiarFiltro(setTab)("todos")}
-          className={`px-4 py-2 text-sm font-bold uppercase ${
-            tab === "todos"
-              ? "bg-marca-azul text-white"
-              : "bg-marca-azul/10 text-marca-azul"
-          }`}
-        >
-          Todos
-        </button>
-        {TIPOS_INVENTARIO.map((t) => (
+      {!categoriaFiltro ? (
+        <div className="flex gap-3">
           <button
-            key={t.value}
             type="button"
-            onClick={() => cambiarFiltro(setTab)(t.value)}
-            className={`px-4 py-2 text-sm font-bold uppercase ${
-              tab === t.value
-                ? "bg-marca-azul text-white"
-                : "bg-marca-azul/10 text-marca-azul"
-            }`}
+            onClick={() => elegirCategoria("repuesto")}
+            className="flex-1 border-4 border-marca-rojo bg-marca-rojo/5 py-8 text-xl font-black uppercase text-marca-rojo hover:bg-marca-rojo/10"
           >
-            {t.label}
+            Repuestos
           </button>
-        ))}
-      </div>
-
-      <div className="mb-4 flex gap-4">
-        <input
-          value={busqueda}
-          onChange={(e) => cambiarFiltro(setBusqueda)(e.target.value)}
-          placeholder="Buscar por nombre, marca de repuesto, marca de vehículo, modelo o proveedor..."
-          className="flex-1 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
-        />
-        <input
-          value={anioFiltro}
-          onChange={(e) => cambiarFiltro(setAnioFiltro)(e.target.value)}
-          type="number"
-          placeholder="Año"
-          className="w-32 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
-        />
-      </div>
-
-      {loading ? (
-        <p className="font-bold text-marca-azul">Cargando inventario...</p>
-      ) : (
-        <div className="overflow-x-auto border-2 border-marca-azul">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-marca-azul text-white">
-                <th className="p-3"></th>
-                <th className="p-3">Foto</th>
-                <th className="p-3">Nombre</th>
-                <th className="p-3">Marca repuesto</th>
-                <th className="p-3">Marca vehículo</th>
-                <th className="p-3">Modelo</th>
-                <th className="p-3">Año</th>
-                <th className="p-3">Proveedor</th>
-                <th className="p-3">Stock</th>
-                <th className="p-3">Costo</th>
-                <th className="p-3">Venta</th>
-                <th className="p-3">Tipo</th>
-                <th className="p-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {productosPagina.map((p) => {
-                const proveedores = p.proveedores || [];
-                const multiple = proveedores.length > 1;
-                const expandido = expandidos.has(p.id);
-                return (
-                  <Fragment key={p.id}>
-                    <tr className="border-t border-marca-azul/20">
-                      <td className="p-3">
-                        {multiple && (
-                          <button
-                            type="button"
-                            onClick={() => alternarExpandido(p.id)}
-                            className="font-bold text-marca-azul"
-                            aria-label="Ver proveedores"
-                          >
-                            {expandido ? "▼" : "▶"}
-                          </button>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        {p.fotoUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => setFotoAmpliada(p.fotoUrl)}
-                            className="text-sm font-bold text-marca-azul hover:underline"
-                          >
-                            Ver foto
-                          </button>
-                        ) : (
-                          <span className="text-sm text-marca-azul/40">—</span>
-                        )}
-                      </td>
-                      <td className="p-3 font-bold">{p.nombre}</td>
-                      <td className="p-3">{p.marcaRepuesto}</td>
-                      <td className="p-3">{p.marcaVehiculo || "—"}</td>
-                      <td className="p-3">{p.modelo || "—"}</td>
-                      <td className="p-3">
-                        {p.anioDesde || p.anioHasta
-                          ? `${p.anioDesde ?? "?"}–${p.anioHasta ?? "?"}`
-                          : "—"}
-                      </td>
-                      <td className="p-3 text-sm">
-                        {multiple ? `${proveedores.length} proveedores` : textoProveedores(proveedores)}
-                      </td>
-                      <td className="p-3">{stockTotal(proveedores) ?? "—"}</td>
-                      <td className="p-3">{rangoPrecio(proveedores, "costo")}</td>
-                      <td className="p-3">{rangoPrecio(proveedores, "venta")}</td>
-                      <td className="p-3 text-xs font-bold uppercase text-marca-azul">
-                        {TIPOS_INVENTARIO.find((t) => t.value === p.tipoInventario)
-                          ?.label ?? p.tipoInventario}
-                      </td>
-                      <td className="p-3">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProductoEditando(p);
-                              setModalAbierto(true);
-                            }}
-                            className="text-sm font-bold text-marca-azul hover:underline"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleEliminar(p)}
-                            className="text-sm font-bold text-marca-rojo hover:underline"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {multiple &&
-                      expandido &&
-                      proveedores.map((prov, i) => (
-                        <tr key={`${p.id}-prov-${i}`} className="border-t border-marca-azul/10 bg-marca-azul/5">
-                          <td className="p-2"></td>
-                          <td className="p-2"></td>
-                          <td className="p-2 pl-6 text-sm text-marca-azul/70" colSpan={2}>
-                            ↳ {prov.nombre}
-                            {prov.codigo ? ` (${prov.codigo})` : ""}
-                          </td>
-                          <td className="p-2 text-sm text-marca-azul/70" colSpan={2}>
-                            {prov.fecha?.toDate
-                              ? prov.fecha.toDate().toLocaleDateString("es-CL")
-                              : "—"}
-                          </td>
-                          <td className="p-2"></td>
-                          <td className="p-2"></td>
-                          <td className="p-2 text-sm">{prov.stock ?? "—"}</td>
-                          <td className="p-2 text-sm">{formatoCLP(prov.costo)}</td>
-                          <td className="p-2 text-sm">{formatoCLP(prov.venta)}</td>
-                          <td className="p-2"></td>
-                          <td className="p-2"></td>
-                        </tr>
-                      ))}
-                  </Fragment>
-                );
-              })}
-              {productosFiltrados.length === 0 && (
-                <tr>
-                  <td colSpan={13} className="p-6 text-center text-marca-azul">
-                    No se encontraron productos.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <button
+            type="button"
+            onClick={() => elegirCategoria("accesorio")}
+            className="flex-1 border-4 border-marca-rojo bg-marca-rojo/5 py-8 text-xl font-black uppercase text-marca-rojo hover:bg-marca-rojo/10"
+          >
+            Accesorios
+          </button>
         </div>
-      )}
-
-      {!loading && productosFiltrados.length > POR_PAGINA && (
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-sm font-bold text-marca-azul">
-            {productosFiltrados.length} productos — página {paginaActual} de{" "}
-            {totalPaginas}
+      ) : categoriaFiltro === "repuesto" && !marcaVehiculoFiltro ? (
+        <div>
+          <button
+            type="button"
+            onClick={() => elegirCategoria(null)}
+            className="mb-3 text-sm font-bold text-marca-azul hover:underline"
+          >
+            ← Cambiar categoría
+          </button>
+          <p className="mb-2 text-sm font-black uppercase text-marca-azul">
+            Elige la marca del vehículo
           </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={paginaActual === 1}
-              onClick={() => setPagina((p) => p - 1)}
-              className="bg-marca-azul px-4 py-1.5 text-sm font-bold uppercase text-white disabled:opacity-30"
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              disabled={paginaActual === totalPaginas}
-              onClick={() => setPagina((p) => p + 1)}
-              className="bg-marca-azul px-4 py-1.5 text-sm font-bold uppercase text-white disabled:opacity-30"
-            >
-              Siguiente
-            </button>
+          <div className="flex flex-wrap gap-2">
+            {marcasVehiculoDisponibles.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => elegirMarcaVehiculo(m)}
+                className="border-2 border-marca-azul px-4 py-2 text-sm font-bold uppercase text-marca-azul hover:bg-marca-azul/10"
+              >
+                {m === SIN_MARCA ? "Sin marca" : m}
+              </button>
+            ))}
           </div>
         </div>
+      ) : categoriaFiltro === "repuesto" && !modeloFiltro ? (
+        <div>
+          <button
+            type="button"
+            onClick={() => elegirMarcaVehiculo(null)}
+            className="mb-3 text-sm font-bold text-marca-azul hover:underline"
+          >
+            ← Cambiar marca ({marcaVehiculoFiltro === SIN_MARCA ? "Sin marca" : marcaVehiculoFiltro})
+          </button>
+          <p className="mb-2 text-sm font-black uppercase text-marca-azul">
+            Elige el modelo
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {modelosGenericosDisponibles.map((m) => (
+              <button
+                key={m.clave}
+                type="button"
+                onClick={() => elegirModelo(m.clave)}
+                className="border-2 border-marca-azul px-4 py-2 text-sm font-bold uppercase text-marca-azul hover:bg-marca-azul/10"
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => elegirCategoria(null)}
+            className="mb-3 text-sm font-bold text-marca-azul hover:underline"
+          >
+            ← Cambiar categoría
+            {categoriaFiltro === "repuesto" &&
+              ` (${marcaVehiculoFiltro === SIN_MARCA ? "Sin marca" : marcaVehiculoFiltro} — ${
+                modelosGenericosDisponibles.find((m) => m.clave === modeloFiltro)?.label ??
+                modeloFiltro
+              })`}
+          </button>
+
+          {categoriaFiltro === "repuesto" && (
+            <button
+              type="button"
+              onClick={() => elegirModelo(null)}
+              className="mb-3 ml-4 text-sm font-bold text-marca-azul hover:underline"
+            >
+              ← Cambiar modelo
+            </button>
+          )}
+
+          <div className="mb-4 flex gap-4">
+            <input
+              value={busqueda}
+              onChange={(e) => cambiarFiltro(setBusqueda)(e.target.value)}
+              placeholder="Buscar por nombre, marca de repuesto, marca de vehículo, modelo o proveedor..."
+              className="flex-1 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+            />
+            <input
+              value={anioFiltro}
+              onChange={(e) => cambiarFiltro(setAnioFiltro)(e.target.value)}
+              type="number"
+              placeholder="Año"
+              className="w-32 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+            />
+          </div>
+
+          {loading ? (
+            <p className="font-bold text-marca-azul">Cargando inventario...</p>
+          ) : (
+            <div className="overflow-x-auto border-2 border-marca-azul">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-marca-azul text-white">
+                    <th className="p-3"></th>
+                    <th className="p-3">Foto</th>
+                    <th className="p-3">Nombre</th>
+                    <th className="p-3">Marca repuesto</th>
+                    <th className="p-3">Marca vehículo</th>
+                    <th className="p-3">Modelo</th>
+                    <th className="p-3">Año</th>
+                    <th className="p-3">Proveedor</th>
+                    <th className="p-3">Stock</th>
+                    <th className="p-3">Costo</th>
+                    <th className="p-3">Venta</th>
+                    <th className="p-3">Tipo</th>
+                    <th className="p-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productosPagina.map((p) => {
+                    const proveedores = p.proveedores || [];
+                    const multiple = proveedores.length > 1;
+                    const expandido = expandidos.has(p.id);
+                    return (
+                      <Fragment key={p.id}>
+                        <tr className="border-t border-marca-azul/20">
+                          <td className="p-3">
+                            {multiple && (
+                              <button
+                                type="button"
+                                onClick={() => alternarExpandido(p.id)}
+                                className="font-bold text-marca-azul"
+                                aria-label="Ver proveedores"
+                              >
+                                {expandido ? "▼" : "▶"}
+                              </button>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            {p.fotoUrl ? (
+                              <button
+                                type="button"
+                                onClick={() => setFotoAmpliada(p.fotoUrl)}
+                                className="text-sm font-bold text-marca-azul hover:underline"
+                              >
+                                Ver foto
+                              </button>
+                            ) : (
+                              <span className="text-sm text-marca-azul/40">—</span>
+                            )}
+                          </td>
+                          <td className="p-3 font-bold">{p.nombre}</td>
+                          <td className="p-3">{p.marcaRepuesto}</td>
+                          <td className="p-3">{p.marcaVehiculo || "—"}</td>
+                          <td className="p-3">{p.modelo || "—"}</td>
+                          <td className="p-3">
+                            {p.anioDesde || p.anioHasta
+                              ? `${p.anioDesde ?? "?"}–${p.anioHasta ?? "?"}`
+                              : "—"}
+                          </td>
+                          <td className="p-3 text-sm">
+                            {multiple
+                              ? `${proveedores.length} proveedores`
+                              : textoProveedores(proveedores)}
+                          </td>
+                          <td className="p-3">{stockTotal(proveedores) ?? "—"}</td>
+                          <td className="p-3">{rangoPrecio(proveedores, "costo")}</td>
+                          <td className="p-3">{rangoPrecio(proveedores, "venta")}</td>
+                          <td className="p-3 text-xs font-bold uppercase text-marca-azul">
+                            {TIPOS_INVENTARIO.find((t) => t.value === p.tipoInventario)
+                              ?.label ?? p.tipoInventario}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setProductoEditando(p);
+                                  setModalAbierto(true);
+                                }}
+                                className="text-sm font-bold text-marca-azul hover:underline"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEliminar(p)}
+                                className="text-sm font-bold text-marca-rojo hover:underline"
+                              >
+                                Eliminar
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {multiple &&
+                          expandido &&
+                          proveedores.map((prov, i) => (
+                            <tr
+                              key={`${p.id}-prov-${i}`}
+                              className="border-t border-marca-azul/10 bg-marca-azul/5"
+                            >
+                              <td className="p-2"></td>
+                              <td className="p-2"></td>
+                              <td className="p-2 pl-6 text-sm text-marca-azul/70" colSpan={2}>
+                                ↳ {prov.nombre}
+                                {prov.codigo ? ` (${prov.codigo})` : ""}
+                              </td>
+                              <td className="p-2 text-sm text-marca-azul/70" colSpan={2}>
+                                {prov.fecha?.toDate
+                                  ? prov.fecha.toDate().toLocaleDateString("es-CL")
+                                  : "—"}
+                              </td>
+                              <td className="p-2"></td>
+                              <td className="p-2"></td>
+                              <td className="p-2 text-sm">{prov.stock ?? "—"}</td>
+                              <td className="p-2 text-sm">{formatoCLP(prov.costo)}</td>
+                              <td className="p-2 text-sm">{formatoCLP(prov.venta)}</td>
+                              <td className="p-2"></td>
+                              <td className="p-2"></td>
+                            </tr>
+                          ))}
+                      </Fragment>
+                    );
+                  })}
+                  {productosFiltrados.length === 0 && (
+                    <tr>
+                      <td colSpan={13} className="p-6 text-center text-marca-azul">
+                        No se encontraron productos.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!loading && productosFiltrados.length > POR_PAGINA && (
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-sm font-bold text-marca-azul">
+                {productosFiltrados.length} productos — página {paginaActual} de{" "}
+                {totalPaginas}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={paginaActual === 1}
+                  onClick={() => setPagina((p) => p - 1)}
+                  className="bg-marca-azul px-4 py-1.5 text-sm font-bold uppercase text-white disabled:opacity-30"
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={paginaActual === totalPaginas}
+                  onClick={() => setPagina((p) => p + 1)}
+                  className="bg-marca-azul px-4 py-1.5 text-sm font-bold uppercase text-white disabled:opacity-30"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {modalAbierto && (

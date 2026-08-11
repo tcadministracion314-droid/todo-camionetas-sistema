@@ -10,6 +10,14 @@ const CORRECCIONES = [
   { patron: /hulux/gi, reemplazo: "Hilux" },
   { patron: /hilix/gi, reemplazo: "Hilux" },
   { patron: /bt5o/gi, reemplazo: "BT50" },
+  // Códigos de modelo que vienen con espacio en vez de pegados
+  { patron: /\bl\s+200\b/gi, reemplazo: "L200" },
+  { patron: /\bd\s+21\b/gi, reemplazo: "D21" },
+  { patron: /\bd\s+22\b/gi, reemplazo: "D22" },
+  { patron: /\bnp\s+300\b/gi, reemplazo: "NP300" },
+  { patron: /\bbt\s+50\b/gi, reemplazo: "BT50" },
+  { patron: /\bj\s+18\b/gi, reemplazo: "J18" },
+  { patron: /\brav\s+4\b/gi, reemplazo: "Rav4" },
 ];
 
 function corregir(modelo) {
