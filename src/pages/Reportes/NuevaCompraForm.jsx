@@ -2,7 +2,7 @@ import { useState } from "react";
 import BuscadorProducto from "../../components/BuscadorProducto";
 import CampoConSugerencias from "../../components/CampoConSugerencias";
 import { useCatalogo } from "../../hooks/useCatalogo";
-import { CATEGORIAS } from "../../lib/constants";
+import { CATEGORIAS, SUBCATEGORIAS_ACCESORIO } from "../../lib/constants";
 import { formatoCLP } from "../../lib/format";
 import {
   registrarCompraProductoExistente,
@@ -14,7 +14,13 @@ const NUEVO_VACIO = {
   marcaRepuesto: "",
   marcaVehiculo: "",
   categoria: "repuesto",
+  subcategoria: SUBCATEGORIAS_ACCESORIO[0],
+  tipoRepuesto: "",
   modelo: "",
+  anioDesde: "",
+  anioHasta: "",
+  codigoOriginal: "",
+  glosaTecnica: "",
 };
 
 export default function NuevaCompraForm({ productos, comprador }) {
@@ -22,9 +28,11 @@ export default function NuevaCompraForm({ productos, comprador }) {
 
   const [producto, setProducto] = useState(null);
   const [proveedorNombre, setProveedorNombre] = useState("");
+  const [codigoProveedor, setCodigoProveedor] = useState("");
   const [nuevo, setNuevo] = useState(NUEVO_VACIO);
   const [cantidad, setCantidad] = useState("1");
   const [costoUnitario, setCostoUnitario] = useState("");
+  const [precioVenta, setPrecioVenta] = useState("");
   const [numeroFactura, setNumeroFactura] = useState("");
   const [fechaFactura, setFechaFactura] = useState(new Date().toISOString().slice(0, 10));
   const [guardando, setGuardando] = useState(false);
@@ -33,23 +41,32 @@ export default function NuevaCompraForm({ productos, comprador }) {
 
   const { valores: marcasRepuesto } = useCatalogo("marcasRepuesto");
   const { valores: marcasVehiculo } = useCatalogo("marcasVehiculo");
+  const { valores: tiposRepuesto } = useCatalogo("tiposRepuesto");
   const { valores: proveedoresSugeridos } = useCatalogo("proveedores");
 
   function seleccionarProducto(p) {
     setProducto(p);
     const existente = p.proveedores?.[0];
     setProveedorNombre(existente?.nombre || "");
+    setCodigoProveedor(existente?.codigo || "");
     setCostoUnitario(existente?.costo ?? "");
+    setPrecioVenta(existente?.venta ?? "");
     setError("");
+  }
+
+  function campoNuevo(nombre, valor) {
+    setNuevo((prev) => ({ ...prev, [nombre]: valor }));
   }
 
   function cambiarModo(m) {
     setModo(m);
     setProducto(null);
     setProveedorNombre("");
+    setCodigoProveedor("");
     setNuevo(NUEVO_VACIO);
     setCantidad("1");
     setCostoUnitario("");
+    setPrecioVenta("");
     setNumeroFactura("");
     setError("");
   }
@@ -81,8 +98,10 @@ export default function NuevaCompraForm({ productos, comprador }) {
         await registrarCompraProductoExistente({
           producto,
           proveedorNombre: proveedorNombre.trim(),
+          codigoProveedor: codigoProveedor.trim(),
           cantidad: cantidadNum,
           costoUnitario: costoNum,
+          precioVenta,
           comprador,
           numeroFactura: numeroFactura.trim(),
           fechaFactura,
@@ -93,10 +112,18 @@ export default function NuevaCompraForm({ productos, comprador }) {
           marcaRepuesto: nuevo.marcaRepuesto.trim(),
           marcaVehiculo: nuevo.marcaVehiculo.trim(),
           categoria: nuevo.categoria,
+          subcategoria: nuevo.subcategoria,
+          tipoRepuesto: nuevo.tipoRepuesto.trim(),
           modelo: nuevo.modelo.trim(),
+          anioDesde: nuevo.anioDesde,
+          anioHasta: nuevo.anioHasta,
+          codigoOriginal: nuevo.codigoOriginal.trim(),
+          glosaTecnica: nuevo.glosaTecnica.trim(),
           proveedorNombre: proveedorNombre.trim(),
+          codigoProveedor: codigoProveedor.trim(),
           cantidad: cantidadNum,
           costoUnitario: costoNum,
+          precioVenta,
           comprador,
           numeroFactura: numeroFactura.trim(),
           fechaFactura,
@@ -110,9 +137,11 @@ export default function NuevaCompraForm({ productos, comprador }) {
       );
       setProducto(null);
       setProveedorNombre("");
+      setCodigoProveedor("");
       setNuevo(NUEVO_VACIO);
       setCantidad("1");
       setCostoUnitario("");
+      setPrecioVenta("");
       setNumeroFactura("");
     } catch (err) {
       console.error(err);
@@ -170,7 +199,7 @@ export default function NuevaCompraForm({ productos, comprador }) {
             </label>
             <input
               value={nuevo.nombre}
-              onChange={(e) => setNuevo((prev) => ({ ...prev, nombre: e.target.value }))}
+              onChange={(e) => campoNuevo("nombre", e.target.value)}
               className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
             />
           </div>
@@ -179,7 +208,7 @@ export default function NuevaCompraForm({ productos, comprador }) {
               id="compraMarcaRepuesto"
               label="Marca del repuesto"
               value={nuevo.marcaRepuesto}
-              onChange={(v) => setNuevo((prev) => ({ ...prev, marcaRepuesto: v }))}
+              onChange={(v) => campoNuevo("marcaRepuesto", v)}
               sugerencias={marcasRepuesto}
               required
             />
@@ -187,10 +216,47 @@ export default function NuevaCompraForm({ productos, comprador }) {
               id="compraMarcaVehiculo"
               label="Marca del vehículo (opcional)"
               value={nuevo.marcaVehiculo}
-              onChange={(v) => setNuevo((prev) => ({ ...prev, marcaVehiculo: v }))}
+              onChange={(v) => campoNuevo("marcaVehiculo", v)}
               sugerencias={marcasVehiculo}
             />
           </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-bold text-marca-azul">
+              Modelo de vehículo compatible
+            </label>
+            <input
+              value={nuevo.modelo}
+              onChange={(e) => campoNuevo("modelo", e.target.value)}
+              className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="mb-1 block text-sm font-bold text-marca-azul">
+                Año desde
+              </label>
+              <input
+                type="number"
+                value={nuevo.anioDesde}
+                onChange={(e) => campoNuevo("anioDesde", e.target.value)}
+                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-bold text-marca-azul">
+                Año hasta
+              </label>
+              <input
+                type="number"
+                value={nuevo.anioHasta}
+                onChange={(e) => campoNuevo("anioHasta", e.target.value)}
+                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="mb-1 block text-sm font-bold text-marca-azul">
@@ -198,7 +264,7 @@ export default function NuevaCompraForm({ productos, comprador }) {
               </label>
               <select
                 value={nuevo.categoria}
-                onChange={(e) => setNuevo((prev) => ({ ...prev, categoria: e.target.value }))}
+                onChange={(e) => campoNuevo("categoria", e.target.value)}
                 className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
               >
                 {CATEGORIAS.map((c) => (
@@ -208,30 +274,84 @@ export default function NuevaCompraForm({ productos, comprador }) {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-bold text-marca-azul">
-                Modelo (opcional)
-              </label>
-              <input
-                value={nuevo.modelo}
-                onChange={(e) => setNuevo((prev) => ({ ...prev, modelo: e.target.value }))}
-                className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+
+            {nuevo.categoria === "accesorio" ? (
+              <div>
+                <label className="mb-1 block text-sm font-bold text-marca-azul">
+                  Subcategoría
+                </label>
+                <select
+                  value={nuevo.subcategoria}
+                  onChange={(e) => campoNuevo("subcategoria", e.target.value)}
+                  className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+                >
+                  {SUBCATEGORIAS_ACCESORIO.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <CampoConSugerencias
+                id="compraTipoRepuesto"
+                label="Tipo de repuesto"
+                value={nuevo.tipoRepuesto}
+                onChange={(v) => campoNuevo("tipoRepuesto", v)}
+                sugerencias={tiposRepuesto}
               />
-            </div>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-bold text-marca-azul">
+              Código original (universal)
+            </label>
+            <input
+              value={nuevo.codigoOriginal}
+              onChange={(e) => campoNuevo("codigoOriginal", e.target.value)}
+              placeholder="Déjalo vacío si aún no lo tienes"
+              className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-bold text-marca-azul">
+              Glosa técnica (opcional)
+            </label>
+            <textarea
+              value={nuevo.glosaTecnica}
+              onChange={(e) => campoNuevo("glosaTecnica", e.target.value)}
+              rows={2}
+              placeholder="Detalle técnico adicional (medidas, especificaciones, notas...)"
+              className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+            />
           </div>
         </div>
       )}
 
-      <CampoConSugerencias
-        id="compraProveedor"
-        label="¿A quién se le compra?"
-        value={proveedorNombre}
-        onChange={setProveedorNombre}
-        sugerencias={proveedoresSugeridos}
-        required
-      />
+      <div className="grid grid-cols-2 gap-2">
+        <CampoConSugerencias
+          id="compraProveedor"
+          label="¿A quién se le compra?"
+          value={proveedorNombre}
+          onChange={setProveedorNombre}
+          sugerencias={proveedoresSugeridos}
+          required
+        />
+        <div>
+          <label className="mb-1 block text-sm font-bold text-marca-azul">
+            Código del proveedor
+          </label>
+          <input
+            value={codigoProveedor}
+            onChange={(e) => setCodigoProveedor(e.target.value)}
+            className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+          />
+        </div>
+      </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         <div>
           <label className="mb-1 block text-sm font-bold text-marca-azul">Cantidad</label>
           <input
@@ -251,6 +371,18 @@ export default function NuevaCompraForm({ productos, comprador }) {
             min="0"
             value={costoUnitario}
             onChange={(e) => setCostoUnitario(e.target.value)}
+            className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-bold text-marca-azul">
+            Precio de venta
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={precioVenta}
+            onChange={(e) => setPrecioVenta(e.target.value)}
             className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
           />
         </div>

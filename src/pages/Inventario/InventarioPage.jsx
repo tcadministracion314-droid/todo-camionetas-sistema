@@ -54,8 +54,212 @@ function modeloGenerico(modelo) {
   return limpio.split(/\s+/)[0] || null;
 }
 
+function coincideTexto(p, texto) {
+  if (!texto) return true;
+  return (
+    p.nombre?.toLowerCase().includes(texto) ||
+    p.marcaRepuesto?.toLowerCase().includes(texto) ||
+    p.marcaVehiculo?.toLowerCase().includes(texto) ||
+    p.modelo?.toLowerCase().includes(texto) ||
+    p.codigoOriginal?.toLowerCase().includes(texto) ||
+    p.proveedores?.some(
+      (prov) =>
+        prov.nombre?.toLowerCase().includes(texto) ||
+        prov.codigo?.toLowerCase().includes(texto)
+    )
+  );
+}
+
+function TablaProductos({
+  lista,
+  loading,
+  expandidos,
+  alternarExpandido,
+  setFotoAmpliada,
+  setProductoEditando,
+  setModalAbierto,
+  handleEliminar,
+  pagina,
+  setPagina,
+}) {
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const itemsPagina = lista.slice((paginaActual - 1) * POR_PAGINA, paginaActual * POR_PAGINA);
+
+  if (loading) {
+    return <p className="font-bold text-marca-azul">Cargando inventario...</p>;
+  }
+
+  return (
+    <>
+      <div className="overflow-x-auto border-2 border-marca-azul">
+        <table className="w-full border-collapse text-left">
+          <thead>
+            <tr className="bg-marca-azul text-white">
+              <th className="p-3"></th>
+              <th className="p-3">Foto</th>
+              <th className="p-3">Nombre</th>
+              <th className="p-3">Marca repuesto</th>
+              <th className="p-3">Marca vehículo</th>
+              <th className="p-3">Modelo</th>
+              <th className="p-3">Año</th>
+              <th className="p-3">Proveedor</th>
+              <th className="p-3">Stock</th>
+              <th className="p-3">Costo</th>
+              <th className="p-3">Venta</th>
+              <th className="p-3">Tipo</th>
+              <th className="p-3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {itemsPagina.map((p) => {
+              const proveedores = p.proveedores || [];
+              const multiple = proveedores.length > 1;
+              const expandido = expandidos.has(p.id);
+              return (
+                <Fragment key={p.id}>
+                  <tr className="border-t border-marca-azul/20">
+                    <td className="p-3">
+                      {multiple && (
+                        <button
+                          type="button"
+                          onClick={() => alternarExpandido(p.id)}
+                          className="font-bold text-marca-azul"
+                          aria-label="Ver proveedores"
+                        >
+                          {expandido ? "▼" : "▶"}
+                        </button>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {p.fotoUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => setFotoAmpliada(p.fotoUrl)}
+                          className="text-sm font-bold text-marca-azul hover:underline"
+                        >
+                          Ver foto
+                        </button>
+                      ) : (
+                        <span className="text-sm text-marca-azul/40">—</span>
+                      )}
+                    </td>
+                    <td className="p-3 font-bold">{p.nombre}</td>
+                    <td className="p-3">{p.marcaRepuesto}</td>
+                    <td className="p-3">{p.marcaVehiculo || "—"}</td>
+                    <td className="p-3">{p.modelo || "—"}</td>
+                    <td className="p-3">
+                      {p.anioDesde || p.anioHasta
+                        ? `${p.anioDesde ?? "?"}–${p.anioHasta ?? "?"}`
+                        : "—"}
+                    </td>
+                    <td className="p-3 text-sm">
+                      {multiple
+                        ? `${proveedores.length} proveedores`
+                        : textoProveedores(proveedores)}
+                    </td>
+                    <td className="p-3">{stockTotal(proveedores) ?? "—"}</td>
+                    <td className="p-3">{rangoPrecio(proveedores, "costo")}</td>
+                    <td className="p-3">{rangoPrecio(proveedores, "venta")}</td>
+                    <td className="p-3 text-xs font-bold uppercase text-marca-azul">
+                      {TIPOS_INVENTARIO.find((t) => t.value === p.tipoInventario)?.label ??
+                        p.tipoInventario}
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProductoEditando(p);
+                            setModalAbierto(true);
+                          }}
+                          className="text-sm font-bold text-marca-azul hover:underline"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEliminar(p)}
+                          className="text-sm font-bold text-marca-rojo hover:underline"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {multiple &&
+                    expandido &&
+                    proveedores.map((prov, i) => (
+                      <tr
+                        key={`${p.id}-prov-${i}`}
+                        className="border-t border-marca-azul/10 bg-marca-azul/5"
+                      >
+                        <td className="p-2"></td>
+                        <td className="p-2"></td>
+                        <td className="p-2 pl-6 text-sm text-marca-azul/70" colSpan={2}>
+                          ↳ {prov.nombre}
+                          {prov.codigo ? ` (${prov.codigo})` : ""}
+                        </td>
+                        <td className="p-2 text-sm text-marca-azul/70" colSpan={2}>
+                          {prov.fecha?.toDate
+                            ? prov.fecha.toDate().toLocaleDateString("es-CL")
+                            : "—"}
+                        </td>
+                        <td className="p-2"></td>
+                        <td className="p-2"></td>
+                        <td className="p-2 text-sm">{prov.stock ?? "—"}</td>
+                        <td className="p-2 text-sm">{formatoCLP(prov.costo)}</td>
+                        <td className="p-2 text-sm">{formatoCLP(prov.venta)}</td>
+                        <td className="p-2"></td>
+                        <td className="p-2"></td>
+                      </tr>
+                    ))}
+                </Fragment>
+              );
+            })}
+            {lista.length === 0 && (
+              <tr>
+                <td colSpan={13} className="p-6 text-center text-marca-azul">
+                  No se encontraron productos.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {lista.length > POR_PAGINA && (
+        <div className="mt-4 flex items-center justify-between">
+          <p className="text-sm font-bold text-marca-azul">
+            {lista.length} productos — página {paginaActual} de {totalPaginas}
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={paginaActual === 1}
+              onClick={() => setPagina((p) => p - 1)}
+              className="bg-marca-azul px-4 py-1.5 text-sm font-bold uppercase text-white disabled:opacity-30"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              disabled={paginaActual === totalPaginas}
+              onClick={() => setPagina((p) => p + 1)}
+              className="bg-marca-azul px-4 py-1.5 text-sm font-bold uppercase text-white disabled:opacity-30"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function InventarioPage() {
   const { productos, loading } = useProductos();
+  const [busquedaGeneral, setBusquedaGeneral] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [anioFiltro, setAnioFiltro] = useState("");
   const [pagina, setPagina] = useState(1);
@@ -91,6 +295,12 @@ export default function InventarioPage() {
     () => productos.filter((p) => p.tipoInventario !== "pieza_unica_encargada"),
     [productos]
   );
+
+  const resultadosBusquedaGeneral = useMemo(() => {
+    const texto = busquedaGeneral.trim().toLowerCase();
+    if (!texto) return [];
+    return productosValidos.filter((p) => coincideTexto(p, texto));
+  }, [productosValidos, busquedaGeneral]);
 
   const marcasVehiculoDisponibles = useMemo(() => {
     const set = new Set();
@@ -152,17 +362,7 @@ export default function InventarioPage() {
         if (normalizarPalabra(modeloGenerico(p.modelo)) !== modeloFiltro) return false;
       }
 
-      if (texto) {
-        const coincide =
-          p.nombre?.toLowerCase().includes(texto) ||
-          p.marcaRepuesto?.toLowerCase().includes(texto) ||
-          p.marcaVehiculo?.toLowerCase().includes(texto) ||
-          p.modelo?.toLowerCase().includes(texto) ||
-          p.proveedores?.some((prov) =>
-            prov.nombre?.toLowerCase().includes(texto)
-          );
-        if (!coincide) return false;
-      }
+      if (!coincideTexto(p, texto)) return false;
 
       if (anio) {
         const dentroDeRango =
@@ -182,16 +382,6 @@ export default function InventarioPage() {
     modeloFiltro,
   ]);
 
-  const totalPaginas = Math.max(
-    1,
-    Math.ceil(productosFiltrados.length / POR_PAGINA)
-  );
-  const paginaActual = Math.min(pagina, totalPaginas);
-  const productosPagina = productosFiltrados.slice(
-    (paginaActual - 1) * POR_PAGINA,
-    paginaActual * POR_PAGINA
-  );
-
   function cambiarFiltro(setter) {
     return (valor) => {
       setter(valor);
@@ -206,6 +396,18 @@ export default function InventarioPage() {
     if (!confirmar) return;
     await eliminarProducto(producto.id, producto.fotoUrl);
   }
+
+  const tablaProps = {
+    loading,
+    expandidos,
+    alternarExpandido,
+    setFotoAmpliada,
+    setProductoEditando,
+    setModalAbierto,
+    handleEliminar,
+    pagina,
+    setPagina,
+  };
 
   return (
     <div>
@@ -236,21 +438,48 @@ export default function InventarioPage() {
       </div>
 
       {!categoriaFiltro ? (
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => elegirCategoria("repuesto")}
-            className="flex-1 border-4 border-marca-rojo bg-marca-rojo/5 py-8 text-xl font-black uppercase text-marca-rojo hover:bg-marca-rojo/10"
-          >
-            Repuestos
-          </button>
-          <button
-            type="button"
-            onClick={() => elegirCategoria("accesorio")}
-            className="flex-1 border-4 border-marca-rojo bg-marca-rojo/5 py-8 text-xl font-black uppercase text-marca-rojo hover:bg-marca-rojo/10"
-          >
-            Accesorios
-          </button>
+        <div>
+          <div className="mb-4">
+            <label className="mb-1 block text-sm font-bold text-marca-azul">
+              Buscar en todo el inventario
+            </label>
+            <input
+              value={busquedaGeneral}
+              onChange={(e) => cambiarFiltro(setBusquedaGeneral)(e.target.value)}
+              placeholder="Nombre, marca de repuesto, marca de vehículo, modelo, proveedor, código del proveedor o código original..."
+              className="w-full border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
+            />
+          </div>
+
+          {busquedaGeneral.trim() ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => cambiarFiltro(setBusquedaGeneral)("")}
+                className="mb-3 text-sm font-bold text-marca-azul hover:underline"
+              >
+                ✕ Limpiar búsqueda
+              </button>
+              <TablaProductos lista={resultadosBusquedaGeneral} {...tablaProps} />
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => elegirCategoria("repuesto")}
+                className="flex-1 border-4 border-marca-rojo bg-marca-rojo/5 py-8 text-xl font-black uppercase text-marca-rojo hover:bg-marca-rojo/10"
+              >
+                Repuestos
+              </button>
+              <button
+                type="button"
+                onClick={() => elegirCategoria("accesorio")}
+                className="flex-1 border-4 border-marca-rojo bg-marca-rojo/5 py-8 text-xl font-black uppercase text-marca-rojo hover:bg-marca-rojo/10"
+              >
+                Accesorios
+              </button>
+            </div>
+          )}
         </div>
       ) : categoriaFiltro === "repuesto" && !marcaVehiculoFiltro ? (
         <div>
@@ -331,7 +560,7 @@ export default function InventarioPage() {
             <input
               value={busqueda}
               onChange={(e) => cambiarFiltro(setBusqueda)(e.target.value)}
-              placeholder="Buscar por nombre, marca de repuesto, marca de vehículo, modelo o proveedor..."
+              placeholder="Buscar por nombre, marca, modelo, proveedor, código del proveedor o código original..."
               className="flex-1 border-2 border-marca-azul px-3 py-2 outline-none focus:border-marca-rojo"
             />
             <input
@@ -343,172 +572,7 @@ export default function InventarioPage() {
             />
           </div>
 
-          {loading ? (
-            <p className="font-bold text-marca-azul">Cargando inventario...</p>
-          ) : (
-            <div className="overflow-x-auto border-2 border-marca-azul">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-marca-azul text-white">
-                    <th className="p-3"></th>
-                    <th className="p-3">Foto</th>
-                    <th className="p-3">Nombre</th>
-                    <th className="p-3">Marca repuesto</th>
-                    <th className="p-3">Marca vehículo</th>
-                    <th className="p-3">Modelo</th>
-                    <th className="p-3">Año</th>
-                    <th className="p-3">Proveedor</th>
-                    <th className="p-3">Stock</th>
-                    <th className="p-3">Costo</th>
-                    <th className="p-3">Venta</th>
-                    <th className="p-3">Tipo</th>
-                    <th className="p-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {productosPagina.map((p) => {
-                    const proveedores = p.proveedores || [];
-                    const multiple = proveedores.length > 1;
-                    const expandido = expandidos.has(p.id);
-                    return (
-                      <Fragment key={p.id}>
-                        <tr className="border-t border-marca-azul/20">
-                          <td className="p-3">
-                            {multiple && (
-                              <button
-                                type="button"
-                                onClick={() => alternarExpandido(p.id)}
-                                className="font-bold text-marca-azul"
-                                aria-label="Ver proveedores"
-                              >
-                                {expandido ? "▼" : "▶"}
-                              </button>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            {p.fotoUrl ? (
-                              <button
-                                type="button"
-                                onClick={() => setFotoAmpliada(p.fotoUrl)}
-                                className="text-sm font-bold text-marca-azul hover:underline"
-                              >
-                                Ver foto
-                              </button>
-                            ) : (
-                              <span className="text-sm text-marca-azul/40">—</span>
-                            )}
-                          </td>
-                          <td className="p-3 font-bold">{p.nombre}</td>
-                          <td className="p-3">{p.marcaRepuesto}</td>
-                          <td className="p-3">{p.marcaVehiculo || "—"}</td>
-                          <td className="p-3">{p.modelo || "—"}</td>
-                          <td className="p-3">
-                            {p.anioDesde || p.anioHasta
-                              ? `${p.anioDesde ?? "?"}–${p.anioHasta ?? "?"}`
-                              : "—"}
-                          </td>
-                          <td className="p-3 text-sm">
-                            {multiple
-                              ? `${proveedores.length} proveedores`
-                              : textoProveedores(proveedores)}
-                          </td>
-                          <td className="p-3">{stockTotal(proveedores) ?? "—"}</td>
-                          <td className="p-3">{rangoPrecio(proveedores, "costo")}</td>
-                          <td className="p-3">{rangoPrecio(proveedores, "venta")}</td>
-                          <td className="p-3 text-xs font-bold uppercase text-marca-azul">
-                            {TIPOS_INVENTARIO.find((t) => t.value === p.tipoInventario)
-                              ?.label ?? p.tipoInventario}
-                          </td>
-                          <td className="p-3">
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setProductoEditando(p);
-                                  setModalAbierto(true);
-                                }}
-                                className="text-sm font-bold text-marca-azul hover:underline"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleEliminar(p)}
-                                className="text-sm font-bold text-marca-rojo hover:underline"
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {multiple &&
-                          expandido &&
-                          proveedores.map((prov, i) => (
-                            <tr
-                              key={`${p.id}-prov-${i}`}
-                              className="border-t border-marca-azul/10 bg-marca-azul/5"
-                            >
-                              <td className="p-2"></td>
-                              <td className="p-2"></td>
-                              <td className="p-2 pl-6 text-sm text-marca-azul/70" colSpan={2}>
-                                ↳ {prov.nombre}
-                                {prov.codigo ? ` (${prov.codigo})` : ""}
-                              </td>
-                              <td className="p-2 text-sm text-marca-azul/70" colSpan={2}>
-                                {prov.fecha?.toDate
-                                  ? prov.fecha.toDate().toLocaleDateString("es-CL")
-                                  : "—"}
-                              </td>
-                              <td className="p-2"></td>
-                              <td className="p-2"></td>
-                              <td className="p-2 text-sm">{prov.stock ?? "—"}</td>
-                              <td className="p-2 text-sm">{formatoCLP(prov.costo)}</td>
-                              <td className="p-2 text-sm">{formatoCLP(prov.venta)}</td>
-                              <td className="p-2"></td>
-                              <td className="p-2"></td>
-                            </tr>
-                          ))}
-                      </Fragment>
-                    );
-                  })}
-                  {productosFiltrados.length === 0 && (
-                    <tr>
-                      <td colSpan={13} className="p-6 text-center text-marca-azul">
-                        No se encontraron productos.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {!loading && productosFiltrados.length > POR_PAGINA && (
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm font-bold text-marca-azul">
-                {productosFiltrados.length} productos — página {paginaActual} de{" "}
-                {totalPaginas}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  disabled={paginaActual === 1}
-                  onClick={() => setPagina((p) => p - 1)}
-                  className="bg-marca-azul px-4 py-1.5 text-sm font-bold uppercase text-white disabled:opacity-30"
-                >
-                  Anterior
-                </button>
-                <button
-                  type="button"
-                  disabled={paginaActual === totalPaginas}
-                  onClick={() => setPagina((p) => p + 1)}
-                  className="bg-marca-azul px-4 py-1.5 text-sm font-bold uppercase text-white disabled:opacity-30"
-                >
-                  Siguiente
-                </button>
-              </div>
-            </div>
-          )}
+          <TablaProductos lista={productosFiltrados} {...tablaProps} />
         </>
       )}
 

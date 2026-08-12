@@ -48,14 +48,17 @@ async function resolverFactura({ proveedorNombre, numeroFactura, fechaFactura })
 export async function registrarCompraProductoExistente({
   producto,
   proveedorNombre,
+  codigoProveedor,
   cantidad,
   costoUnitario,
+  precioVenta,
   comprador,
   numeroFactura,
   fechaFactura,
 }) {
   const cantidadNum = Number(cantidad);
   const costoNum = Number(costoUnitario);
+  const ventaNum = precioVenta !== "" && precioVenta !== undefined ? Number(precioVenta) : null;
   const total = cantidadNum * costoNum;
 
   const productoRef = doc(db, "productos", producto.id);
@@ -81,9 +84,9 @@ export async function registrarCompraProductoExistente({
         ...proveedores,
         {
           nombre: proveedorNombre,
-          codigo: null,
+          codigo: codigoProveedor?.trim() || null,
           costo: costoNum,
-          venta: null,
+          venta: ventaNum,
           stock: cantidadNum,
           fecha: serverTimestamp(),
         },
@@ -91,7 +94,13 @@ export async function registrarCompraProductoExistente({
     } else {
       nuevosProveedores = proveedores.map((p, i) =>
         i === idx
-          ? { ...p, stock: (p.stock || 0) + cantidadNum, costo: costoNum }
+          ? {
+              ...p,
+              stock: (p.stock || 0) + cantidadNum,
+              costo: costoNum,
+              codigo: codigoProveedor?.trim() || p.codigo,
+              venta: ventaNum !== null ? ventaNum : p.venta,
+            }
           : p
       );
     }
@@ -141,10 +150,18 @@ export async function registrarCompraProductoNuevo({
   marcaRepuesto,
   marcaVehiculo,
   categoria,
+  subcategoria,
+  tipoRepuesto,
   modelo,
+  anioDesde,
+  anioHasta,
+  codigoOriginal,
+  glosaTecnica,
   proveedorNombre,
+  codigoProveedor,
   cantidad,
   costoUnitario,
+  precioVenta,
   comprador,
   numeroFactura,
   fechaFactura,
@@ -157,19 +174,24 @@ export async function registrarCompraProductoNuevo({
     marcaRepuesto,
     marcaVehiculo,
     categoria,
+    subcategoria,
+    tipoRepuesto,
     modelo,
+    anioDesde,
+    anioHasta,
+    glosaTecnica,
     tipoInventario: "en_bodega",
     proveedores: [
       {
         nombre: proveedorNombre,
-        codigo: "",
+        codigo: codigoProveedor || "",
         costo: costoNum,
-        venta: "",
+        venta: precioVenta || "",
         stock: cantidadNum,
         fecha: new Date().toISOString().slice(0, 10),
       },
     ],
-    codigoOriginal: "",
+    codigoOriginal,
   });
 
   await registrarCompraDirecta({
