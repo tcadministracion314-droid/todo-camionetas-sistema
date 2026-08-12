@@ -1,17 +1,6 @@
-import { useEffect, useState } from "react";
-import { subscribeCompras } from "../lib/firestore/compras";
+import { useDatosContext } from "../context/DatosContext";
 
 export function useCompras() {
-  const [compras, setCompras] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = subscribeCompras((items) => {
-      setCompras(items);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
-
-  return { compras, loading };
+  const { compras, comprasLoading } = useDatosContext();
+  return { compras, loading: comprasLoading };
 }

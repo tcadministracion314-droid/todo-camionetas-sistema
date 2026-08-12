@@ -1,17 +1,6 @@
-import { useEffect, useState } from "react";
-import { subscribeProductos } from "../lib/firestore/productos";
+import { useDatosContext } from "../context/DatosContext";
 
 export function useProductos() {
-  const [productos, setProductos] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = subscribeProductos((items) => {
-      setProductos(items);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
-
-  return { productos, loading };
+  const { productos, productosLoading } = useDatosContext();
+  return { productos, loading: productosLoading };
 }

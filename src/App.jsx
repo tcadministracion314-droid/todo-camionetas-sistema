@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { DatosProvider } from "./context/DatosContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
@@ -20,7 +21,9 @@ export default function App() {
           <Route
             element={
               <ProtectedRoute>
-                <Layout />
+                <DatosProvider>
+                  <Layout />
+                </DatosProvider>
               </ProtectedRoute>
             }
           >
