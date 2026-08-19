@@ -142,7 +142,8 @@ export default function ProductoFormModal({ producto, onClose }) {
       onClose();
     } catch (err) {
       console.error(err);
-      setError("No se pudo guardar el producto. Intenta de nuevo.");
+      const detalle = err?.code ? ` (${err.code}: ${err.message})` : err?.message ? ` (${err.message})` : "";
+      setError(`No se pudo guardar el producto. Intenta de nuevo.${detalle}`);
     } finally {
       setGuardando(false);
     }
